@@ -1,17 +1,24 @@
 openapi: 3.1.0
 info:
+  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
+  description: ParkPal GIS Lead Generation API
 servers:
   - url: /api
+    description: Base API path
 tags:
   - name: health
+    description: Health operations
   - name: gis
+    description: GIS algorithm and neighborhood analysis
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
+      summary: Health check
+      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -19,59 +26,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
   /gis/neighborhoods:
     get:
       operationId: listNeighborhoods
       tags: [gis]
+      summary: List all neighborhoods with Alpha Scores
+      description: Returns all neighborhoods with their computed GIS metrics (no geometry)
       parameters:
         - name: city
           in: query
           required: false
           schema:
             type: string
+          description: City to query (default: seattle)
+        - name: minScore
+          in: query
+          required: false
+          schema:
+            type: number
+          description: Minimum alpha score filter
       responses:
         "200":
-          description: List of neighborhoods
+          description: List of neighborhoods with metrics
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/Neighborhood"
-  /gis/summary:
-    get:
-      operationId: getCitySummary
-      tags: [gis]
-      responses:
-        "200":
-          description: City summary
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CitySummary"
-  /gis/micro-markets:
-    get:
-      operationId: listMicroMarkets
-      tags: [gis]
-      responses:
-        "200":
-          description: Micro markets
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/MicroMarket"
+
   /gis/neighborhoods/geojson:
     get:
       operationId: getNeighborhoodsGeoJson
       tags: [gis]
+      summary: Get neighborhoods as GeoJSON FeatureCollection
+      description: Returns full GeoJSON for Leaflet map rendering
       parameters:
         - name: city
           in: query
           required: false
           schema:
             type: string
+          description: City to query (default: seattle)
+        - name: layer
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Data layer (alpha, demand, scarcity, residential)
       responses:
         "200":
           description: GeoJSON FeatureCollection
@@ -79,10 +82,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NeighborhoodGeoJson"
+
   /gis/neighborhoods/{id}:
     get:
       operationId: getNeighborhood
       tags: [gis]
+      summary: Get a single neighborhood detail
       parameters:
         - name: id
           in: path
@@ -102,6 +107,53 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /gis/summary:
+    get:
+      operationId: getCitySummary
+      tags: [gis]
+      summary: Get city-level summary statistics
+      parameters:
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: City summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CitySummary"
+
+  /gis/micro-markets:
+    get:
+      operationId: listMicroMarkets
+      tags: [gis]
+      summary: Get top micro-markets (highest-scoring 4-block radii)
+      parameters:
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Max results (default 10)
+      responses:
+        "200":
+          description: List of micro-markets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MicroMarket"
+
 components:
   schemas:
     HealthStatus:
@@ -111,6 +163,7 @@ components:
           type: string
       required:
         - status
+
     ErrorResponse:
       type: object
       properties:
@@ -118,6 +171,7 @@ components:
           type: string
       required:
         - error
+
     Centroid:
       type: object
       properties:
@@ -128,6 +182,7 @@ components:
       required:
         - lat
         - lng
+
     Neighborhood:
       type: object
       properties:
@@ -139,38 +194,54 @@ components:
           type: string
         alphaScore:
           type: number
+          description: 0-100, the Goldilocks composite score
         demandIndex:
           type: number
+          description: D sub-score 0-100
         publicScarcityIndex:
           type: number
+          description: Ppub sub-score 0-100
         residentialSupplyIndex:
           type: number
+          description: Sres sub-score 0-100
         balanceScore:
           type: number
+          description: sqrt(D * Sres) - geometric mean, 0-100
         walkToWinRatio:
           type: number
+          description: Driveways within 0.5mi of top demand zones
         supplyScarcityIndex:
           type: number
+          description: Commercial spots per 50 commuters (inverted)
         citationDensity:
           type: number
+          description: Parking citations per sq km (proxy)
         poiProximityScore:
           type: number
+          description: Distance-weighted POI density
         commuterDensity:
           type: number
+          description: Estimated daily commuters per sq km
         residentialParcelDensity:
           type: number
+          description: Single-family homes per sq km
         commercialParkingCount:
           type: integer
+          description: Number of commercial parking facilities nearby
         isGoldilocksZone:
           type: boolean
+          description: True if score indicates sweet spot
         isMicroMarket:
           type: boolean
+          description: True if flagged as top micro-market candidate
         centroid:
           $ref: "#/components/schemas/Centroid"
         zoningType:
           type: string
+          description: Dominant land use (residential, mixed, commercial)
         neighborhoodType:
           type: string
+          description: Classification (urban-core, inner-suburb, outer-suburb, rural)
       required:
         - id
         - name
@@ -192,6 +263,20 @@ components:
         - centroid
         - zoningType
         - neighborhoodType
+
+    GeoJsonPoint:
+      type: object
+      properties:
+        type:
+          type: string
+        coordinates:
+          type: array
+          items:
+            type: number
+      required:
+        - type
+        - coordinates
+
     NeighborhoodFeatureProperties:
       type: object
       properties:
@@ -229,6 +314,7 @@ components:
         - isMicroMarket
         - zoningType
         - neighborhoodType
+
     NeighborhoodFeature:
       type: object
       properties:
@@ -238,11 +324,12 @@ components:
           $ref: "#/components/schemas/NeighborhoodFeatureProperties"
         geometry:
           type: object
-          description: GeoJSON geometry
+          description: GeoJSON geometry (Polygon or MultiPolygon)
       required:
         - type
         - properties
         - geometry
+
     NeighborhoodGeoJson:
       type: object
       properties:
@@ -255,6 +342,7 @@ components:
       required:
         - type
         - features
+
     CitySummary:
       type: object
       properties:
@@ -292,6 +380,7 @@ components:
         - medianSupplyIndex
         - totalEstimatedDriveways
         - algorithmVersion
+
     MicroMarket:
       type: object
       properties:
@@ -307,6 +396,7 @@ components:
           $ref: "#/components/schemas/Centroid"
         radiusMeters:
           type: number
+          description: Analysis radius (typically ~400m for 4-block radius)
         estimatedDriveways:
           type: integer
         nearbyDemandPois:
@@ -315,10 +405,13 @@ components:
           type: number
         demandRank:
           type: integer
+          description: Rank by demand (1 = highest)
         overallRank:
           type: integer
+          description: Rank by alpha score (1 = highest)
         opportunityLabel:
           type: string
+          description: Human-readable opportunity description
       required:
         - id
         - name

@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "ParkPal GIS Lead Generation"
+version = "1.0.0"
+id = "artifacts/parkpal-gis"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22261
+
+[services.development]
+run = "pnpm --filter @workspace/parkpal-gis run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/parkpal-gis", "run", "build" ]
+publicDir = "artifacts/parkpal-gis/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22261"
+BASE_PATH = "/"

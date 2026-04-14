@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
-}
+/**
+ * GeoJSON geometry
+ */
+export type NeighborhoodFeatureGeometry = { [key: string]: unknown };
