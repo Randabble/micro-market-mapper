@@ -1,0 +1,85 @@
+ParkPal
+Custom Gem
+This document serves as the comprehensive strategic and technical foundation for ParkPal. It is designed to take a reader from zero knowledge to a full understanding of how we use data science to disrupt the urban parking market.
+
+🛡️ ParkPal: The Strategic Blueprint & GIS Foundation
+1. The Fundamentals (The 5 Ws)
+WHAT is ParkPal?
+ParkPal is a peer-to-peer (P2P) marketplace for parking. We connect Drivers who need affordable, reliable parking with Homeowners (Hosts) who have unused driveway space. Think of it as "Airbnb for your driveway."
+
+WHO is it for?
+
+Drivers: Commuters, event-goers, and residents in high-density areas tired of $40 garages or $100 parking tickets.
+
+Hosts: Homeowners looking for passive income from an asset they already own (their pavement).
+
+WHERE does it operate?
+We launch in "Micro-Markets"—specific 4-block radii within major cities (starting with Bellevue/Seattle) where demand is proven and commercial supply is failing.
+
+WHEN is it used?
+Daily for office commutes, and seasonally/weekly for stadium events, concerts, and festivals.
+
+WHY is it needed?
+Cities are getting denser. Street parking is being removed for bike lanes/transit, and building new garages is too expensive and slow. ParkPal unlocks "hidden" infrastructure that already exists.
+
+2. The Core Problem: The Gap in the Market
+Traditional parking fails because it is inflexible. A parking garage is a multi-million dollar concrete block that can't move. Residential driveways, however, are everywhere.
+
+The Paradox: Drivers are circling blocks for 20 minutes (creating traffic and emissions) while, 50 feet away, a private driveway sits empty for 8 hours. ParkPal closes this gap.
+
+3. The "Brain": The ParkPal GIS Algorithm
+The biggest challenge for any marketplace is the "Chicken and Egg" problem: You need drivers to get hosts, and hosts to get drivers.
+
+We solve this with our GIS (Geographic Information Systems) Algorithm. We don't guess where to launch; we use data to find "Goldilocks Zones."
+
+A. The Goldilocks Zone Logic
+A Goldilocks Zone is a neighborhood that has the perfect balance of:
+
+High Desperation (Demand): People are currently getting tickets or paying 5x the market rate.
+
+Latent Inventory (Supply): Residential homes with driveways are within a 5-10 minute walk of that demand.
+
+Low Competition: No large public garages nearby to undercut our prices.
+
+B. The "Alpha Index" Formula
+We calculate an Alpha Score (0–100) for every neighborhood using a Weighted Multi-Criteria Decision Analysis (WMCDA). This is our proprietary "Secret Sauce."
+
+AlphaScore=(D×0.45)+(P 
+pub
+​
+ ×0.35)+(S 
+res
+​
+ ×0.20)
+D (Unmet Demand): We scrape City Open Data for Parking Citations. A high density of tickets is the "smoke" that signals the "fire" of parking demand.
+
+P 
+pub
+​
+  (Public Scarcity): We calculate the inverse of commercial garage capacity. If there are zero garages within 1,000 feet, our Alpha Score spikes.
+
+S 
+res
+​
+  (Supply Potential): We use parcel data and satellite imagery to calculate the square footage of residential asphalt available for hosting.
+
+4. Operational & Regulatory Strategy
+We don't just provide an app; we provide a Compliance Framework.
+
+The Bellevue Case Study: In cities like Bellevue, WA, hosts need a "Home Occupation Permit." ParkPal automates this. We turn a "legal barrier" into a "feature" by providing hosts with a pre-filled compliance kit, making us the only legal way to monetize a driveway.
+
+Trust & Safety: Every transaction is backed by a digital trail. Drivers check in with photos; license plates are verified; and our "Check-out Logic" handles overstayers by notifying local towing partners—protecting the homeowner's property.
+
+5. The Technical Stack (Built on Replit)
+Our system is designed for high velocity and data-heavy processing:
+
+Backend (Python/Replit): The "Brain" that runs the GIS Algorithm and manages the booking state machine.
+
+Frontend (React/Vercel): The "Face" where hosts use our Driveway Valuation Tool to see their Alpha Score and potential earnings.
+
+Data Layer (Firebase): Real-time updates for map markers and in-app messaging.
+
+6. Why This Wins
+ParkPal isn't just a "parking app." ParkPal is a Data-Science Company. Competitors try to sign up the whole world and fail because they have "low liquidity" (no cars near the spots). We use our GIS Algorithm to be surgical. We own the block before we try to own the city.
+
+By identifying the neighborhoods where the "Alpha Score" is highest, we ensure that every host who signs up gets a booking on Day 1. This is how we achieve Market Traction where others find only friction.
