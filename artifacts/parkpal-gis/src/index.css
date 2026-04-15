@@ -195,3 +195,16 @@
   border: 1px solid hsl(var(--border)) !important;
   box-shadow: var(--shadow-lg) !important;
 }
+
+.hex-tooltip {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--card-foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+  padding: 6px 10px !important;
+}
+
+.hex-tooltip::before {
+  border-top-color: hsl(var(--border)) !important;
+}

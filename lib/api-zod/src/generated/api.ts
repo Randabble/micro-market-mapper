@@ -10,125 +10,147 @@ export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
 
-export const ListNeighborhoodsQueryParams = zod.object({
-  city: zod.coerce.string().optional(),
+export const ListHexesQueryParams = zod.object({
+  minScore: zod.coerce.number().optional(),
 });
 
-export const ListNeighborhoodsResponseItem = zod.object({
-  id: zod.string(),
-  name: zod.string(),
-  city: zod.string(),
+export const ListHexesResponseItem = zod.object({
+  h3Index: zod.string(),
+  lat: zod.number(),
+  lng: zod.number(),
+  demandScore: zod.number(),
+  supplyScore: zod.number(),
+  competitionPenalty: zod.number(),
   alphaScore: zod.number(),
-  demandIndex: zod.number(),
-  publicScarcityIndex: zod.number(),
-  residentialSupplyIndex: zod.number(),
-  balanceScore: zod.number(),
-  walkToWinRatio: zod.number(),
-  supplyScarcityIndex: zod.number(),
-  citationDensity: zod.number(),
-  poiProximityScore: zod.number(),
-  commuterDensity: zod.number(),
-  residentialParcelDensity: zod.number(),
-  commercialParkingCount: zod.number(),
-  isGoldilocksZone: zod.boolean(),
-  isMicroMarket: zod.boolean(),
-  centroid: zod.object({
-    lat: zod.number(),
-    lng: zod.number(),
-  }),
-  zoningType: zod.string(),
-  neighborhoodType: zod.string(),
-});
-export const ListNeighborhoodsResponse = zod.array(
-  ListNeighborhoodsResponseItem,
-);
-
-export const GetCitySummaryResponse = zod.object({
-  city: zod.string(),
-  totalNeighborhoods: zod.number(),
-  goldilocksZoneCount: zod.number(),
-  microMarketCount: zod.number(),
-  avgAlphaScore: zod.number(),
-  topNeighborhood: zod.string(),
-  topScore: zod.number(),
-  medianDemandIndex: zod.number(),
-  medianSupplyIndex: zod.number(),
-  totalEstimatedDriveways: zod.number(),
-  algorithmVersion: zod.string(),
-});
-
-export const ListMicroMarketsResponseItem = zod.object({
-  id: zod.string(),
-  name: zod.string(),
-  neighborhoodId: zod.string(),
-  alphaScore: zod.number(),
-  centroid: zod.object({
-    lat: zod.number(),
-    lng: zod.number(),
-  }),
-  radiusMeters: zod.number(),
+  citationCount: zod.number(),
+  poiCount: zod.number(),
+  residentialParcelCount: zod.number(),
+  publicParkingSpots: zod.number(),
   estimatedDriveways: zod.number(),
-  nearbyDemandPois: zod.number(),
-  walkToWinRatio: zod.number(),
-  demandRank: zod.number(),
-  overallRank: zod.number(),
-  opportunityLabel: zod.string(),
+  neighborhoodName: zod.string(),
+  launchZoneId: zod.number().nullable(),
 });
-export const ListMicroMarketsResponse = zod.array(ListMicroMarketsResponseItem);
+export const ListHexesResponse = zod.array(ListHexesResponseItem);
 
-export const GetNeighborhoodsGeoJsonQueryParams = zod.object({
-  city: zod.coerce.string().optional(),
+export const GetHexGeoJsonQueryParams = zod.object({
+  layer: zod.coerce.string().optional(),
 });
 
-export const GetNeighborhoodsGeoJsonResponse = zod.object({
+export const GetHexGeoJsonResponse = zod.object({
   type: zod.string(),
   features: zod.array(
     zod.object({
       type: zod.string(),
       properties: zod.object({
-        id: zod.string(),
-        name: zod.string(),
+        h3Index: zod.string(),
         alphaScore: zod.number(),
-        demandIndex: zod.number(),
-        publicScarcityIndex: zod.number(),
-        residentialSupplyIndex: zod.number(),
-        balanceScore: zod.number(),
+        demandScore: zod.number(),
+        supplyScore: zod.number(),
+        competitionPenalty: zod.number(),
+        neighborhoodName: zod.string(),
+        launchZoneId: zod.number().nullable(),
         isGoldilocksZone: zod.boolean(),
-        isMicroMarket: zod.boolean(),
-        zoningType: zod.string(),
-        neighborhoodType: zod.string(),
       }),
-      geometry: zod.object({}).passthrough().describe("GeoJSON geometry"),
+      geometry: zod.object({
+        type: zod.string(),
+        coordinates: zod.array(zod.array(zod.array(zod.number()))),
+      }),
     }),
   ),
 });
 
-export const GetNeighborhoodParams = zod.object({
-  id: zod.coerce.string(),
+export const GetHexParams = zod.object({
+  h3Index: zod.coerce.string(),
 });
 
-export const GetNeighborhoodResponse = zod.object({
-  id: zod.string(),
-  name: zod.string(),
-  city: zod.string(),
+export const GetHexResponse = zod.object({
+  h3Index: zod.string(),
+  lat: zod.number(),
+  lng: zod.number(),
+  demandScore: zod.number(),
+  supplyScore: zod.number(),
+  competitionPenalty: zod.number(),
   alphaScore: zod.number(),
-  demandIndex: zod.number(),
-  publicScarcityIndex: zod.number(),
-  residentialSupplyIndex: zod.number(),
-  balanceScore: zod.number(),
-  walkToWinRatio: zod.number(),
-  supplyScarcityIndex: zod.number(),
-  citationDensity: zod.number(),
-  poiProximityScore: zod.number(),
-  commuterDensity: zod.number(),
-  residentialParcelDensity: zod.number(),
-  commercialParkingCount: zod.number(),
-  isGoldilocksZone: zod.boolean(),
-  isMicroMarket: zod.boolean(),
-  centroid: zod.object({
-    lat: zod.number(),
-    lng: zod.number(),
-  }),
-  zoningType: zod.string(),
-  neighborhoodType: zod.string(),
+  citationCount: zod.number(),
+  poiCount: zod.number(),
+  residentialParcelCount: zod.number(),
+  publicParkingSpots: zod.number(),
+  estimatedDriveways: zod.number(),
+  neighborhoodName: zod.string(),
+  launchZoneId: zod.number().nullable(),
 });
+
+export const GetCitySummaryResponse = zod.object({
+  city: zod.string(),
+  totalHexes: zod.number(),
+  hexesAboveThreshold: zod.number(),
+  launchZoneCount: zod.number(),
+  avgAlphaScore: zod.number(),
+  topZoneName: zod.string(),
+  topZoneScore: zod.number(),
+  topHexH3: zod.string(),
+  topHexAlpha: zod.number(),
+  topHexLat: zod.number(),
+  topHexLng: zod.number(),
+  medianDemandScore: zod.number(),
+  medianSupplyScore: zod.number(),
+  totalEstimatedDriveways: zod.number(),
+  algorithmVersion: zod.string(),
+});
+
+export const ListLaunchZonesResponseItem = zod.object({
+  id: zod.number(),
+  rank: zod.number(),
+  centroidLat: zod.number(),
+  centroidLng: zod.number(),
+  hexCount: zod.number(),
+  meanAlpha: zod.number(),
+  maxAlpha: zod.number(),
+  totalResidentialParcels: zod.number(),
+  estimatedDriveways: zod.number(),
+  dominantNeighborhood: zod.string(),
+  label: zod.string(),
+});
+export const ListLaunchZonesResponse = zod.array(ListLaunchZonesResponseItem);
+
+export const GetLaunchZoneParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetLaunchZoneResponse = zod.object({
+  id: zod.number(),
+  rank: zod.number(),
+  centroidLat: zod.number(),
+  centroidLng: zod.number(),
+  hexCount: zod.number(),
+  meanAlpha: zod.number(),
+  maxAlpha: zod.number(),
+  totalResidentialParcels: zod.number(),
+  estimatedDriveways: zod.number(),
+  dominantNeighborhood: zod.string(),
+  label: zod.string(),
+});
+
+export const GetLaunchZoneHexesParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetLaunchZoneHexesResponseItem = zod.object({
+  h3Index: zod.string(),
+  lat: zod.number(),
+  lng: zod.number(),
+  demandScore: zod.number(),
+  supplyScore: zod.number(),
+  competitionPenalty: zod.number(),
+  alphaScore: zod.number(),
+  citationCount: zod.number(),
+  poiCount: zod.number(),
+  residentialParcelCount: zod.number(),
+  publicParkingSpots: zod.number(),
+  estimatedDriveways: zod.number(),
+  neighborhoodName: zod.string(),
+  launchZoneId: zod.number().nullable(),
+});
+export const GetLaunchZoneHexesResponse = zod.array(
+  GetLaunchZoneHexesResponseItem,
+);

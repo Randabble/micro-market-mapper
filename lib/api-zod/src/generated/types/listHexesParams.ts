@@ -5,6 +5,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ErrorResponse {
-  error: string;
-}
+export type ListHexesParams = {
+  minScore?: number;
+};

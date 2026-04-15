@@ -19,316 +19,324 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
-  /gis/neighborhoods:
+  /gis/hexes:
     get:
-      operationId: listNeighborhoods
+      operationId: listHexes
       tags: [gis]
       parameters:
-        - name: city
+        - name: minScore
+          in: query
+          required: false
+          schema:
+            type: number
+      responses:
+        "200":
+          description: List of scored hex cells
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScoredHex"
+  /gis/hexes/geojson:
+    get:
+      operationId: getHexGeoJson
+      tags: [gis]
+      parameters:
+        - name: layer
           in: query
           required: false
           schema:
             type: string
       responses:
         "200":
-          description: List of neighborhoods
+          description: GeoJSON FeatureCollection of hex cells
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Neighborhood"
-  /gis/summary:
+                $ref: "#/components/schemas/HexGeoJson"
+  /gis/hexes/{h3Index}:
     get:
-      operationId: getCitySummary
-      tags: [gis]
-      responses:
-        "200":
-          description: City summary
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CitySummary"
-  /gis/micro-markets:
-    get:
-      operationId: listMicroMarkets
-      tags: [gis]
-      responses:
-        "200":
-          description: Micro markets
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/MicroMarket"
-  /gis/neighborhoods/geojson:
-    get:
-      operationId: getNeighborhoodsGeoJson
+      operationId: getHex
       tags: [gis]
       parameters:
-        - name: city
-          in: query
-          required: false
-          schema:
-            type: string
-      responses:
-        "200":
-          description: GeoJSON FeatureCollection
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/NeighborhoodGeoJson"
-  /gis/neighborhoods/{id}:
-    get:
-      operationId: getNeighborhood
-      tags: [gis]
-      parameters:
-        - name: id
+        - name: h3Index
           in: path
           required: true
           schema:
             type: string
       responses:
         "200":
-          description: Neighborhood detail
+          description: Single hex cell detail
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Neighborhood"
+                $ref: "#/components/schemas/ScoredHex"
         "404":
           description: Not found
+  /gis/summary:
+    get:
+      operationId: getCitySummary
+      tags: [gis]
+      responses:
+        "200":
+          description: City summary stats
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: "#/components/schemas/CitySummary"
+  /gis/launch-zones:
+    get:
+      operationId: listLaunchZones
+      tags: [gis]
+      responses:
+        "200":
+          description: Ranked launch zones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LaunchZone"
+  /gis/launch-zones/{id}:
+    get:
+      operationId: getLaunchZone
+      tags: [gis]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Single launch zone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LaunchZone"
+        "404":
+          description: Not found
+  /gis/launch-zones/{id}/hexes:
+    get:
+      operationId: getLaunchZoneHexes
+      tags: [gis]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Hexes belonging to a launch zone
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScoredHex"
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
-    ErrorResponse:
+    ScoredHex:
       type: object
+      required:
+        - h3Index
+        - lat
+        - lng
+        - demandScore
+        - supplyScore
+        - competitionPenalty
+        - alphaScore
+        - citationCount
+        - poiCount
+        - residentialParcelCount
+        - publicParkingSpots
+        - estimatedDriveways
+        - neighborhoodName
+        - launchZoneId
       properties:
-        error:
+        h3Index:
           type: string
-      required:
-        - error
-    Centroid:
-      type: object
-      properties:
         lat:
           type: number
         lng:
           type: number
-      required:
-        - lat
-        - lng
-    Neighborhood:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        city:
-          type: string
+        demandScore:
+          type: number
+        supplyScore:
+          type: number
+        competitionPenalty:
+          type: number
         alphaScore:
           type: number
-        demandIndex:
-          type: number
-        publicScarcityIndex:
-          type: number
-        residentialSupplyIndex:
-          type: number
-        balanceScore:
-          type: number
-        walkToWinRatio:
-          type: number
-        supplyScarcityIndex:
-          type: number
-        citationDensity:
-          type: number
-        poiProximityScore:
-          type: number
-        commuterDensity:
-          type: number
-        residentialParcelDensity:
-          type: number
-        commercialParkingCount:
+        citationCount:
           type: integer
-        isGoldilocksZone:
-          type: boolean
-        isMicroMarket:
-          type: boolean
-        centroid:
-          $ref: "#/components/schemas/Centroid"
-        zoningType:
+        poiCount:
+          type: integer
+        residentialParcelCount:
+          type: integer
+        publicParkingSpots:
+          type: integer
+        estimatedDriveways:
+          type: integer
+        neighborhoodName:
           type: string
-        neighborhoodType:
-          type: string
-      required:
-        - id
-        - name
-        - city
-        - alphaScore
-        - demandIndex
-        - publicScarcityIndex
-        - residentialSupplyIndex
-        - balanceScore
-        - walkToWinRatio
-        - supplyScarcityIndex
-        - citationDensity
-        - poiProximityScore
-        - commuterDensity
-        - residentialParcelDensity
-        - commercialParkingCount
-        - isGoldilocksZone
-        - isMicroMarket
-        - centroid
-        - zoningType
-        - neighborhoodType
-    NeighborhoodFeatureProperties:
+        launchZoneId:
+          type: integer
+          nullable: true
+    HexFeatureProperties:
       type: object
+      required:
+        - h3Index
+        - alphaScore
+        - demandScore
+        - supplyScore
+        - competitionPenalty
+        - neighborhoodName
+        - launchZoneId
+        - isGoldilocksZone
       properties:
-        id:
-          type: string
-        name:
+        h3Index:
           type: string
         alphaScore:
           type: number
-        demandIndex:
+        demandScore:
           type: number
-        publicScarcityIndex:
+        supplyScore:
           type: number
-        residentialSupplyIndex:
+        competitionPenalty:
           type: number
-        balanceScore:
-          type: number
+        neighborhoodName:
+          type: string
+        launchZoneId:
+          type: integer
+          nullable: true
         isGoldilocksZone:
           type: boolean
-        isMicroMarket:
-          type: boolean
-        zoningType:
-          type: string
-        neighborhoodType:
-          type: string
-      required:
-        - id
-        - name
-        - alphaScore
-        - demandIndex
-        - publicScarcityIndex
-        - residentialSupplyIndex
-        - balanceScore
-        - isGoldilocksZone
-        - isMicroMarket
-        - zoningType
-        - neighborhoodType
-    NeighborhoodFeature:
+    HexFeatureGeometry:
       type: object
+      required: [type, coordinates]
+      properties:
+        type:
+          type: string
+        coordinates:
+          type: array
+          items:
+            type: array
+            items:
+              type: array
+              items:
+                type: number
+    HexFeature:
+      type: object
+      required: [type, properties, geometry]
       properties:
         type:
           type: string
         properties:
-          $ref: "#/components/schemas/NeighborhoodFeatureProperties"
+          $ref: "#/components/schemas/HexFeatureProperties"
         geometry:
-          type: object
-          description: GeoJSON geometry
-      required:
-        - type
-        - properties
-        - geometry
-    NeighborhoodGeoJson:
+          $ref: "#/components/schemas/HexFeatureGeometry"
+    HexGeoJson:
       type: object
+      required: [type, features]
       properties:
         type:
           type: string
         features:
           type: array
           items:
-            $ref: "#/components/schemas/NeighborhoodFeature"
+            $ref: "#/components/schemas/HexFeature"
+    LaunchZone:
+      type: object
       required:
-        - type
-        - features
+        - id
+        - rank
+        - centroidLat
+        - centroidLng
+        - hexCount
+        - meanAlpha
+        - maxAlpha
+        - totalResidentialParcels
+        - estimatedDriveways
+        - dominantNeighborhood
+        - label
+      properties:
+        id:
+          type: integer
+        rank:
+          type: integer
+        centroidLat:
+          type: number
+        centroidLng:
+          type: number
+        hexCount:
+          type: integer
+        meanAlpha:
+          type: number
+        maxAlpha:
+          type: number
+        totalResidentialParcels:
+          type: integer
+        estimatedDriveways:
+          type: integer
+        dominantNeighborhood:
+          type: string
+        label:
+          type: string
     CitySummary:
       type: object
+      required:
+        - city
+        - totalHexes
+        - hexesAboveThreshold
+        - launchZoneCount
+        - avgAlphaScore
+        - topZoneName
+        - topZoneScore
+        - topHexH3
+        - topHexAlpha
+        - topHexLat
+        - topHexLng
+        - medianDemandScore
+        - medianSupplyScore
+        - totalEstimatedDriveways
+        - algorithmVersion
       properties:
         city:
           type: string
-        totalNeighborhoods:
+        totalHexes:
           type: integer
-        goldilocksZoneCount:
+        hexesAboveThreshold:
           type: integer
-        microMarketCount:
+        launchZoneCount:
           type: integer
         avgAlphaScore:
           type: number
-        topNeighborhood:
+        topZoneName:
           type: string
-        topScore:
+        topZoneScore:
           type: number
-        medianDemandIndex:
+        topHexH3:
+          type: string
+        topHexAlpha:
           type: number
-        medianSupplyIndex:
+        topHexLat:
+          type: number
+        topHexLng:
+          type: number
+        medianDemandScore:
+          type: number
+        medianSupplyScore:
           type: number
         totalEstimatedDriveways:
           type: integer
         algorithmVersion:
           type: string
-      required:
-        - city
-        - totalNeighborhoods
-        - goldilocksZoneCount
-        - microMarketCount
-        - avgAlphaScore
-        - topNeighborhood
-        - topScore
-        - medianDemandIndex
-        - medianSupplyIndex
-        - totalEstimatedDriveways
-        - algorithmVersion
-    MicroMarket:
-      type: object
-      properties:
-        id:
-          type: string
-        name:
-          type: string
-        neighborhoodId:
-          type: string
-        alphaScore:
-          type: number
-        centroid:
-          $ref: "#/components/schemas/Centroid"
-        radiusMeters:
-          type: number
-        estimatedDriveways:
-          type: integer
-        nearbyDemandPois:
-          type: integer
-        walkToWinRatio:
-          type: number
-        demandRank:
-          type: integer
-        overallRank:
-          type: integer
-        opportunityLabel:
-          type: string
-      required:
-        - id
-        - name
-        - neighborhoodId
-        - alphaScore
-        - centroid
-        - radiusMeters
-        - estimatedDriveways
-        - nearbyDemandPois
-        - walkToWinRatio
-        - demandRank
-        - overallRank
-        - opportunityLabel

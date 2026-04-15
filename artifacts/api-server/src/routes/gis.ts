@@ -1,75 +1,75 @@
 import { Router, type IRouter } from "express";
 import {
-  ListNeighborhoodsQueryParams,
-  GetNeighborhoodsGeoJsonQueryParams,
-  GetNeighborhoodParams,
-} from "@workspace/api-zod";
-import {
-  getNeighborhoods,
-  getNeighborhoodById,
-  getNeighborhoodsGeoJson,
+  getScoredHexes,
+  getHexById,
+  getHexGeoJson,
   getCitySummary,
-  getMicroMarkets,
+  getLaunchZones,
+  getLaunchZoneById,
+  getHexesByLaunchZone,
 } from "../lib/gis-algorithm";
 
 const router: IRouter = Router();
 
-router.get("/gis/neighborhoods", async (req, res): Promise<void> => {
-  const params = ListNeighborhoodsQueryParams.safeParse(req.query);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  const { city, minScore } = params.data;
-  const neighborhoods = getNeighborhoods(city ?? "seattle", minScore);
-  res.json(neighborhoods);
+router.get("/gis/hexes", async (_req, res): Promise<void> => {
+  const minScoreRaw = _req.query.minScore;
+  const minScore =
+    typeof minScoreRaw === "string" ? parseFloat(minScoreRaw) : undefined;
+  const hexes = getScoredHexes(
+    minScore !== undefined && !isNaN(minScore) ? minScore : undefined
+  );
+  res.json(hexes);
 });
 
-router.get("/gis/neighborhoods/geojson", async (req, res): Promise<void> => {
-  const params = GetNeighborhoodsGeoJsonQueryParams.safeParse(req.query);
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
-    return;
-  }
-  const { city, layer } = params.data;
-  const geojson = getNeighborhoodsGeoJson(city ?? "seattle", layer ?? "alpha");
+router.get("/gis/hexes/geojson", async (req, res): Promise<void> => {
+  const layer =
+    typeof req.query.layer === "string" ? req.query.layer : "alpha";
+  const geojson = getHexGeoJson(layer);
   res.json(geojson);
 });
 
-router.get("/gis/summary", async (req, res): Promise<void> => {
-  const city =
-    typeof req.query.city === "string" ? req.query.city : "seattle";
-  const summary = getCitySummary(city);
+router.get("/gis/hexes/:h3Index", async (req, res): Promise<void> => {
+  const h3Index = req.params.h3Index;
+  const hex = getHexById(h3Index);
+  if (!hex) {
+    res.status(404).json({ error: "Hex not found" });
+    return;
+  }
+  res.json(hex);
+});
+
+router.get("/gis/summary", async (_req, res): Promise<void> => {
+  const summary = getCitySummary();
   res.json(summary);
 });
 
-router.get("/gis/micro-markets", async (req, res): Promise<void> => {
-  const city =
-    typeof req.query.city === "string" ? req.query.city : "seattle";
-  const limitRaw = req.query.limit;
-  const limit =
-    typeof limitRaw === "string" ? parseInt(limitRaw, 10) || 10 : 10;
-  const markets = getMicroMarkets(city, limit);
-  res.json(markets);
+router.get("/gis/launch-zones", async (_req, res): Promise<void> => {
+  const zones = getLaunchZones();
+  res.json(zones);
 });
 
-router.get("/gis/neighborhoods/:id", async (req, res): Promise<void> => {
-  const raw = Array.isArray(req.params.id)
-    ? req.params.id[0]
-    : req.params.id;
-  const params = GetNeighborhoodParams.safeParse({ id: raw });
-  if (!params.success) {
-    res.status(400).json({ error: params.error.message });
+router.get("/gis/launch-zones/:id", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid zone ID" });
     return;
   }
-  const city =
-    typeof req.query.city === "string" ? req.query.city : "seattle";
-  const neighborhood = getNeighborhoodById(params.data.id, city);
-  if (!neighborhood) {
-    res.status(404).json({ error: "Neighborhood not found" });
+  const zone = getLaunchZoneById(id);
+  if (!zone) {
+    res.status(404).json({ error: "Launch zone not found" });
     return;
   }
-  res.json(neighborhood);
+  res.json(zone);
+});
+
+router.get("/gis/launch-zones/:id/hexes", async (req, res): Promise<void> => {
+  const id = parseInt(req.params.id, 10);
+  if (isNaN(id)) {
+    res.status(400).json({ error: "Invalid zone ID" });
+    return;
+  }
+  const hexes = getHexesByLaunchZone(id);
+  res.json(hexes);
 });
 
 export default router;

@@ -8,102 +8,86 @@ export interface HealthStatus {
   status: string;
 }
 
-export interface ErrorResponse {
-  error: string;
-}
-
-export interface Centroid {
+export interface ScoredHex {
+  h3Index: string;
   lat: number;
   lng: number;
-}
-
-export interface Neighborhood {
-  id: string;
-  name: string;
-  city: string;
+  demandScore: number;
+  supplyScore: number;
+  competitionPenalty: number;
   alphaScore: number;
-  demandIndex: number;
-  publicScarcityIndex: number;
-  residentialSupplyIndex: number;
-  balanceScore: number;
-  walkToWinRatio: number;
-  supplyScarcityIndex: number;
-  citationDensity: number;
-  poiProximityScore: number;
-  commuterDensity: number;
-  residentialParcelDensity: number;
-  commercialParkingCount: number;
-  isGoldilocksZone: boolean;
-  isMicroMarket: boolean;
-  centroid: Centroid;
-  zoningType: string;
-  neighborhoodType: string;
+  citationCount: number;
+  poiCount: number;
+  residentialParcelCount: number;
+  publicParkingSpots: number;
+  estimatedDriveways: number;
+  neighborhoodName: string;
+  launchZoneId: number | null;
 }
 
-export interface NeighborhoodFeatureProperties {
-  id: string;
-  name: string;
+export interface HexFeatureProperties {
+  h3Index: string;
   alphaScore: number;
-  demandIndex: number;
-  publicScarcityIndex: number;
-  residentialSupplyIndex: number;
-  balanceScore: number;
+  demandScore: number;
+  supplyScore: number;
+  competitionPenalty: number;
+  neighborhoodName: string;
+  launchZoneId: number | null;
   isGoldilocksZone: boolean;
-  isMicroMarket: boolean;
-  zoningType: string;
-  neighborhoodType: string;
 }
 
-/**
- * GeoJSON geometry
- */
-export type NeighborhoodFeatureGeometry = { [key: string]: unknown };
-
-export interface NeighborhoodFeature {
+export interface HexFeatureGeometry {
   type: string;
-  properties: NeighborhoodFeatureProperties;
-  /** GeoJSON geometry */
-  geometry: NeighborhoodFeatureGeometry;
+  coordinates: number[][][];
 }
 
-export interface NeighborhoodGeoJson {
+export interface HexFeature {
   type: string;
-  features: NeighborhoodFeature[];
+  properties: HexFeatureProperties;
+  geometry: HexFeatureGeometry;
+}
+
+export interface HexGeoJson {
+  type: string;
+  features: HexFeature[];
+}
+
+export interface LaunchZone {
+  id: number;
+  rank: number;
+  centroidLat: number;
+  centroidLng: number;
+  hexCount: number;
+  meanAlpha: number;
+  maxAlpha: number;
+  totalResidentialParcels: number;
+  estimatedDriveways: number;
+  dominantNeighborhood: string;
+  label: string;
 }
 
 export interface CitySummary {
   city: string;
-  totalNeighborhoods: number;
-  goldilocksZoneCount: number;
-  microMarketCount: number;
+  totalHexes: number;
+  hexesAboveThreshold: number;
+  launchZoneCount: number;
   avgAlphaScore: number;
-  topNeighborhood: string;
-  topScore: number;
-  medianDemandIndex: number;
-  medianSupplyIndex: number;
+  topZoneName: string;
+  topZoneScore: number;
+  topHexH3: string;
+  topHexAlpha: number;
+  topHexLat: number;
+  topHexLng: number;
+  medianDemandScore: number;
+  medianSupplyScore: number;
   totalEstimatedDriveways: number;
   algorithmVersion: string;
 }
 
-export interface MicroMarket {
-  id: string;
-  name: string;
-  neighborhoodId: string;
-  alphaScore: number;
-  centroid: Centroid;
-  radiusMeters: number;
-  estimatedDriveways: number;
-  nearbyDemandPois: number;
-  walkToWinRatio: number;
-  demandRank: number;
-  overallRank: number;
-  opportunityLabel: string;
-}
-
-export type ListNeighborhoodsParams = {
-  city?: string;
+export type ListHexesParams = {
+  minScore?: number;
 };
 
-export type GetNeighborhoodsGeoJsonParams = {
-  city?: string;
+export type GetHexGeoJsonParams = {
+  layer?: string;
 };

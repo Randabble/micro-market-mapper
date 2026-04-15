@@ -5,7 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-/**
- * GeoJSON geometry
- */
-export type NeighborhoodFeatureGeometry = { [key: string]: unknown };
+export interface HexFeatureGeometry {
+  type: string;
+  coordinates: number[][][];
+}

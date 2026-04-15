@@ -14,13 +14,12 @@ import type {
 
 import type {
   CitySummary,
-  ErrorResponse,
-  GetNeighborhoodsGeoJsonParams,
+  GetHexGeoJsonParams,
   HealthStatus,
-  ListNeighborhoodsParams,
-  MicroMarket,
-  Neighborhood,
-  NeighborhoodGeoJson,
+  HexGeoJson,
+  LaunchZone,
+  ListHexesParams,
+  ScoredHex,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -100,7 +99,7 @@ export function useHealthCheck<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-export const getListNeighborhoodsUrl = (params?: ListNeighborhoodsParams) => {
+export const getListHexesUrl = (params?: ListHexesParams) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
@@ -112,34 +111,32 @@ export const getListNeighborhoodsUrl = (params?: ListNeighborhoodsParams) => {
   const stringifiedParams = normalizedParams.toString();
 
   return stringifiedParams.length > 0
-    ? `/api/gis/neighborhoods?${stringifiedParams}`
-    : `/api/gis/neighborhoods`;
+    ? `/api/gis/hexes?${stringifiedParams}`
+    : `/api/gis/hexes`;
 };
 
-export const listNeighborhoods = async (
-  params?: ListNeighborhoodsParams,
+export const listHexes = async (
+  params?: ListHexesParams,
   options?: RequestInit,
-): Promise<Neighborhood[]> => {
-  return customFetch<Neighborhood[]>(getListNeighborhoodsUrl(params), {
+): Promise<ScoredHex[]> => {
+  return customFetch<ScoredHex[]>(getListHexesUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getListNeighborhoodsQueryKey = (
-  params?: ListNeighborhoodsParams,
-) => {
-  return [`/api/gis/neighborhoods`, ...(params ? [params] : [])] as const;
+export const getListHexesQueryKey = (params?: ListHexesParams) => {
+  return [`/api/gis/hexes`, ...(params ? [params] : [])] as const;
 };
 
-export const getListNeighborhoodsQueryOptions = <
-  TData = Awaited<ReturnType<typeof listNeighborhoods>>,
+export const getListHexesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listHexes>>,
   TError = ErrorType<unknown>,
 >(
-  params?: ListNeighborhoodsParams,
+  params?: ListHexesParams,
   options?: {
     query?: UseQueryOptions<
-      Awaited<ReturnType<typeof listNeighborhoods>>,
+      Awaited<ReturnType<typeof listHexes>>,
       TError,
       TData
     >;
@@ -148,40 +145,194 @@ export const getListNeighborhoodsQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getListNeighborhoodsQueryKey(params);
+  const queryKey = queryOptions?.queryKey ?? getListHexesQueryKey(params);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listNeighborhoods>>
-  > = ({ signal }) => listNeighborhoods(params, { signal, ...requestOptions });
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listHexes>>> = ({
+    signal,
+  }) => listHexes(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listNeighborhoods>>,
+    Awaited<ReturnType<typeof listHexes>>,
     TError,
     TData
   > & { queryKey: QueryKey };
 };
 
-export type ListNeighborhoodsQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listNeighborhoods>>
+export type ListHexesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listHexes>>
 >;
-export type ListNeighborhoodsQueryError = ErrorType<unknown>;
+export type ListHexesQueryError = ErrorType<unknown>;
 
-export function useListNeighborhoods<
-  TData = Awaited<ReturnType<typeof listNeighborhoods>>,
+export function useListHexes<
+  TData = Awaited<ReturnType<typeof listHexes>>,
   TError = ErrorType<unknown>,
 >(
-  params?: ListNeighborhoodsParams,
+  params?: ListHexesParams,
   options?: {
     query?: UseQueryOptions<
-      Awaited<ReturnType<typeof listNeighborhoods>>,
+      Awaited<ReturnType<typeof listHexes>>,
       TError,
       TData
     >;
     request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListNeighborhoodsQueryOptions(params, options);
+  const queryOptions = getListHexesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetHexGeoJsonUrl = (params?: GetHexGeoJsonParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/gis/hexes/geojson?${stringifiedParams}`
+    : `/api/gis/hexes/geojson`;
+};
+
+export const getHexGeoJson = async (
+  params?: GetHexGeoJsonParams,
+  options?: RequestInit,
+): Promise<HexGeoJson> => {
+  return customFetch<HexGeoJson>(getGetHexGeoJsonUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetHexGeoJsonQueryKey = (params?: GetHexGeoJsonParams) => {
+  return [`/api/gis/hexes/geojson`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetHexGeoJsonQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHexGeoJson>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetHexGeoJsonParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getHexGeoJson>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetHexGeoJsonQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getHexGeoJson>>> = ({
+    signal,
+  }) => getHexGeoJson(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getHexGeoJson>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetHexGeoJsonQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHexGeoJson>>
+>;
+export type GetHexGeoJsonQueryError = ErrorType<unknown>;
+
+export function useGetHexGeoJson<
+  TData = Awaited<ReturnType<typeof getHexGeoJson>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetHexGeoJsonParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getHexGeoJson>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetHexGeoJsonQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetHexUrl = (h3Index: string) => {
+  return `/api/gis/hexes/${h3Index}`;
+};
+
+export const getHex = async (
+  h3Index: string,
+  options?: RequestInit,
+): Promise<ScoredHex> => {
+  return customFetch<ScoredHex>(getGetHexUrl(h3Index), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetHexQueryKey = (h3Index: string) => {
+  return [`/api/gis/hexes/${h3Index}`] as const;
+};
+
+export const getGetHexQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHex>>,
+  TError = ErrorType<void>,
+>(
+  h3Index: string,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getHex>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetHexQueryKey(h3Index);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getHex>>> = ({
+    signal,
+  }) => getHex(h3Index, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!h3Index,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getHex>>, TError, TData> & {
+    queryKey: QueryKey;
+  };
+};
+
+export type GetHexQueryResult = NonNullable<Awaited<ReturnType<typeof getHex>>>;
+export type GetHexQueryError = ErrorType<void>;
+
+export function useGetHex<
+  TData = Awaited<ReturnType<typeof getHex>>,
+  TError = ErrorType<void>,
+>(
+  h3Index: string,
+  options?: {
+    query?: UseQueryOptions<Awaited<ReturnType<typeof getHex>>, TError, TData>;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetHexQueryOptions(h3Index, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -258,29 +409,29 @@ export function useGetCitySummary<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-export const getListMicroMarketsUrl = () => {
-  return `/api/gis/micro-markets`;
+export const getListLaunchZonesUrl = () => {
+  return `/api/gis/launch-zones`;
 };
 
-export const listMicroMarkets = async (
+export const listLaunchZones = async (
   options?: RequestInit,
-): Promise<MicroMarket[]> => {
-  return customFetch<MicroMarket[]>(getListMicroMarketsUrl(), {
+): Promise<LaunchZone[]> => {
+  return customFetch<LaunchZone[]>(getListLaunchZonesUrl(), {
     ...options,
     method: "GET",
   });
 };
 
-export const getListMicroMarketsQueryKey = () => {
-  return [`/api/gis/micro-markets`] as const;
+export const getListLaunchZonesQueryKey = () => {
+  return [`/api/gis/launch-zones`] as const;
 };
 
-export const getListMicroMarketsQueryOptions = <
-  TData = Awaited<ReturnType<typeof listMicroMarkets>>,
+export const getListLaunchZonesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listLaunchZones>>,
   TError = ErrorType<unknown>,
 >(options?: {
   query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listMicroMarkets>>,
+    Awaited<ReturnType<typeof listLaunchZones>>,
     TError,
     TData
   >;
@@ -288,36 +439,36 @@ export const getListMicroMarketsQueryOptions = <
 }) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListMicroMarketsQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getListLaunchZonesQueryKey();
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof listMicroMarkets>>
-  > = ({ signal }) => listMicroMarkets({ signal, ...requestOptions });
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listLaunchZones>>> = ({
+    signal,
+  }) => listLaunchZones({ signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listMicroMarkets>>,
+    Awaited<ReturnType<typeof listLaunchZones>>,
     TError,
     TData
   > & { queryKey: QueryKey };
 };
 
-export type ListMicroMarketsQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listMicroMarkets>>
+export type ListLaunchZonesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listLaunchZones>>
 >;
-export type ListMicroMarketsQueryError = ErrorType<unknown>;
+export type ListLaunchZonesQueryError = ErrorType<unknown>;
 
-export function useListMicroMarkets<
-  TData = Awaited<ReturnType<typeof listMicroMarkets>>,
+export function useListLaunchZones<
+  TData = Awaited<ReturnType<typeof listLaunchZones>>,
   TError = ErrorType<unknown>,
 >(options?: {
   query?: UseQueryOptions<
-    Awaited<ReturnType<typeof listMicroMarkets>>,
+    Awaited<ReturnType<typeof listLaunchZones>>,
     TError,
     TData
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListMicroMarketsQueryOptions(options);
+  const queryOptions = getListLaunchZonesQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -326,131 +477,32 @@ export function useListMicroMarkets<
   return { ...query, queryKey: queryOptions.queryKey };
 }
 
-export const getGetNeighborhoodsGeoJsonUrl = (
-  params?: GetNeighborhoodsGeoJsonParams,
-) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? "null" : value.toString());
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0
-    ? `/api/gis/neighborhoods/geojson?${stringifiedParams}`
-    : `/api/gis/neighborhoods/geojson`;
+export const getGetLaunchZoneUrl = (id: number) => {
+  return `/api/gis/launch-zones/${id}`;
 };
 
-export const getNeighborhoodsGeoJson = async (
-  params?: GetNeighborhoodsGeoJsonParams,
+export const getLaunchZone = async (
+  id: number,
   options?: RequestInit,
-): Promise<NeighborhoodGeoJson> => {
-  return customFetch<NeighborhoodGeoJson>(
-    getGetNeighborhoodsGeoJsonUrl(params),
-    {
-      ...options,
-      method: "GET",
-    },
-  );
-};
-
-export const getGetNeighborhoodsGeoJsonQueryKey = (
-  params?: GetNeighborhoodsGeoJsonParams,
-) => {
-  return [
-    `/api/gis/neighborhoods/geojson`,
-    ...(params ? [params] : []),
-  ] as const;
-};
-
-export const getGetNeighborhoodsGeoJsonQueryOptions = <
-  TData = Awaited<ReturnType<typeof getNeighborhoodsGeoJson>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetNeighborhoodsGeoJsonParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getNeighborhoodsGeoJson>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
-
-  const queryKey =
-    queryOptions?.queryKey ?? getGetNeighborhoodsGeoJsonQueryKey(params);
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getNeighborhoodsGeoJson>>
-  > = ({ signal }) =>
-    getNeighborhoodsGeoJson(params, { signal, ...requestOptions });
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getNeighborhoodsGeoJson>>,
-    TError,
-    TData
-  > & { queryKey: QueryKey };
-};
-
-export type GetNeighborhoodsGeoJsonQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getNeighborhoodsGeoJson>>
->;
-export type GetNeighborhoodsGeoJsonQueryError = ErrorType<unknown>;
-
-export function useGetNeighborhoodsGeoJson<
-  TData = Awaited<ReturnType<typeof getNeighborhoodsGeoJson>>,
-  TError = ErrorType<unknown>,
->(
-  params?: GetNeighborhoodsGeoJsonParams,
-  options?: {
-    query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getNeighborhoodsGeoJson>>,
-      TError,
-      TData
-    >;
-    request?: SecondParameter<typeof customFetch>;
-  },
-): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetNeighborhoodsGeoJsonQueryOptions(params, options);
-
-  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
-    queryKey: QueryKey;
-  };
-
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getGetNeighborhoodUrl = (id: string) => {
-  return `/api/gis/neighborhoods/${id}`;
-};
-
-export const getNeighborhood = async (
-  id: string,
-  options?: RequestInit,
-): Promise<Neighborhood> => {
-  return customFetch<Neighborhood>(getGetNeighborhoodUrl(id), {
+): Promise<LaunchZone> => {
+  return customFetch<LaunchZone>(getGetLaunchZoneUrl(id), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetNeighborhoodQueryKey = (id: string) => {
-  return [`/api/gis/neighborhoods/${id}`] as const;
+export const getGetLaunchZoneQueryKey = (id: number) => {
+  return [`/api/gis/launch-zones/${id}`] as const;
 };
 
-export const getGetNeighborhoodQueryOptions = <
-  TData = Awaited<ReturnType<typeof getNeighborhood>>,
-  TError = ErrorType<ErrorResponse>,
+export const getGetLaunchZoneQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLaunchZone>>,
+  TError = ErrorType<void>,
 >(
-  id: string,
+  id: number,
   options?: {
     query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getNeighborhood>>,
+      Awaited<ReturnType<typeof getLaunchZone>>,
       TError,
       TData
     >;
@@ -459,11 +511,11 @@ export const getGetNeighborhoodQueryOptions = <
 ) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetNeighborhoodQueryKey(id);
+  const queryKey = queryOptions?.queryKey ?? getGetLaunchZoneQueryKey(id);
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNeighborhood>>> = ({
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLaunchZone>>> = ({
     signal,
-  }) => getNeighborhood(id, { signal, ...requestOptions });
+  }) => getLaunchZone(id, { signal, ...requestOptions });
 
   return {
     queryKey,
@@ -471,32 +523,112 @@ export const getGetNeighborhoodQueryOptions = <
     enabled: !!id,
     ...queryOptions,
   } as UseQueryOptions<
-    Awaited<ReturnType<typeof getNeighborhood>>,
+    Awaited<ReturnType<typeof getLaunchZone>>,
     TError,
     TData
   > & { queryKey: QueryKey };
 };
 
-export type GetNeighborhoodQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getNeighborhood>>
+export type GetLaunchZoneQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLaunchZone>>
 >;
-export type GetNeighborhoodQueryError = ErrorType<ErrorResponse>;
+export type GetLaunchZoneQueryError = ErrorType<void>;
 
-export function useGetNeighborhood<
-  TData = Awaited<ReturnType<typeof getNeighborhood>>,
-  TError = ErrorType<ErrorResponse>,
+export function useGetLaunchZone<
+  TData = Awaited<ReturnType<typeof getLaunchZone>>,
+  TError = ErrorType<void>,
 >(
-  id: string,
+  id: number,
   options?: {
     query?: UseQueryOptions<
-      Awaited<ReturnType<typeof getNeighborhood>>,
+      Awaited<ReturnType<typeof getLaunchZone>>,
       TError,
       TData
     >;
     request?: SecondParameter<typeof customFetch>;
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetNeighborhoodQueryOptions(id, options);
+  const queryOptions = getGetLaunchZoneQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetLaunchZoneHexesUrl = (id: number) => {
+  return `/api/gis/launch-zones/${id}/hexes`;
+};
+
+export const getLaunchZoneHexes = async (
+  id: number,
+  options?: RequestInit,
+): Promise<ScoredHex[]> => {
+  return customFetch<ScoredHex[]>(getGetLaunchZoneHexesUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLaunchZoneHexesQueryKey = (id: number) => {
+  return [`/api/gis/launch-zones/${id}/hexes`] as const;
+};
+
+export const getGetLaunchZoneHexesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLaunchZoneHexes>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLaunchZoneHexes>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLaunchZoneHexesQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getLaunchZoneHexes>>
+  > = ({ signal }) => getLaunchZoneHexes(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLaunchZoneHexes>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLaunchZoneHexesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLaunchZoneHexes>>
+>;
+export type GetLaunchZoneHexesQueryError = ErrorType<unknown>;
+
+export function useGetLaunchZoneHexes<
+  TData = Awaited<ReturnType<typeof getLaunchZoneHexes>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLaunchZoneHexes>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLaunchZoneHexesQueryOptions(id, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

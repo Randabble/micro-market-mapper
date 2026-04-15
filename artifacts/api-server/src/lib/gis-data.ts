@@ -1,387 +1,172 @@
-export interface NeighborhoodRaw {
-  id: string;
-  name: string;
-  city: string;
-  demandIndex: number;
-  publicScarcityIndex: number;
-  residentialSupplyIndex: number;
-  citationDensity: number;
-  poiProximityScore: number;
-  commuterDensity: number;
-  residentialParcelDensity: number;
-  commercialParkingCount: number;
-  zoningType: "residential" | "mixed" | "commercial";
-  neighborhoodType: "urban-core" | "inner-suburb" | "outer-suburb" | "rural";
-  centroid: [number, number];
-  polygon: [number, number][];
+import { latLngToCell, cellToBoundary, cellToLatLng, gridDisk, cellArea, UNITS } from "h3-js";
+
+export const TUNABLE = {
+  H3_RESOLUTION: 8,
+  WALK_RADIUS_M: 800,
+  COMPETITION_RADIUS_M: 400,
+  ALPHA_THRESHOLD: 40,
+  DBSCAN_EPS_M: 1200,
+  DBSCAN_MIN_SAMPLES: 3,
+  COMPETITION_PENALTY_WEIGHT: 0.3,
+  DRIVEWAY_RATE: 0.85,
+} as const;
+
+export interface HexRaw {
+  h3Index: string;
+  lat: number;
+  lng: number;
+  citationCount: number;
+  poiCount: number;
+  residentialParcelCount: number;
+  publicParkingSpots: number;
+  neighborhoodName: string;
 }
 
-function makeBox(
-  latMin: number,
-  latMax: number,
-  lngMin: number,
-  lngMax: number,
-  steps = 0
-): [number, number][] {
-  if (steps === 0) {
-    return [
-      [lngMin, latMin],
-      [lngMax, latMin],
-      [lngMax, latMax],
-      [lngMin, latMax],
-      [lngMin, latMin],
-    ];
+interface ZoneCenter {
+  lat: number;
+  lng: number;
+  name: string;
+  citationBase: number;
+  poiBase: number;
+  residentialBase: number;
+  parkingBase: number;
+  radius: number;
+}
+
+const ZONE_CENTERS: ZoneCenter[] = [
+  { lat: 47.6062, lng: -122.3321, name: "Downtown Seattle", citationBase: 280, poiBase: 18, residentialBase: 5, parkingBase: 120, radius: 0.025 },
+  { lat: 47.6000, lng: -122.3320, name: "Pioneer Square", citationBase: 250, poiBase: 15, residentialBase: 8, parkingBase: 100, radius: 0.020 },
+  { lat: 47.6222, lng: -122.3380, name: "South Lake Union", citationBase: 220, poiBase: 16, residentialBase: 10, parkingBase: 90, radius: 0.022 },
+  { lat: 47.6190, lng: -122.3140, name: "Capitol Hill", citationBase: 150, poiBase: 12, residentialBase: 55, parkingBase: 25, radius: 0.025 },
+  { lat: 47.6100, lng: -122.2820, name: "Madrona / Leschi", citationBase: 80, poiBase: 6, residentialBase: 75, parkingBase: 5, radius: 0.025 },
+  { lat: 47.5650, lng: -122.2830, name: "Columbia City", citationBase: 65, poiBase: 5, residentialBase: 70, parkingBase: 6, radius: 0.025 },
+  { lat: 47.6610, lng: -122.3340, name: "Wallingford", citationBase: 70, poiBase: 6, residentialBase: 80, parkingBase: 4, radius: 0.025 },
+  { lat: 47.5630, lng: -122.3760, name: "West Seattle Junction", citationBase: 60, poiBase: 5, residentialBase: 78, parkingBase: 5, radius: 0.025 },
+  { lat: 47.6510, lng: -122.3510, name: "Fremont", citationBase: 100, poiBase: 8, residentialBase: 45, parkingBase: 15, radius: 0.022 },
+  { lat: 47.6650, lng: -122.3820, name: "Ballard", citationBase: 90, poiBase: 8, residentialBase: 50, parkingBase: 12, radius: 0.025 },
+  { lat: 47.6600, lng: -122.3130, name: "University District", citationBase: 130, poiBase: 11, residentialBase: 35, parkingBase: 30, radius: 0.022 },
+  { lat: 47.6860, lng: -122.3560, name: "Greenwood", citationBase: 30, poiBase: 3, residentialBase: 85, parkingBase: 2, radius: 0.022 },
+  { lat: 47.6740, lng: -122.3520, name: "Phinney Ridge", citationBase: 25, poiBase: 2, residentialBase: 88, parkingBase: 2, radius: 0.022 },
+  { lat: 47.6460, lng: -122.4000, name: "Magnolia", citationBase: 15, poiBase: 2, residentialBase: 90, parkingBase: 1, radius: 0.025 },
+  { lat: 47.5450, lng: -122.3160, name: "Georgetown", citationBase: 50, poiBase: 4, residentialBase: 35, parkingBase: 15, radius: 0.020 },
+  { lat: 47.5980, lng: -122.3230, name: "International District", citationBase: 200, poiBase: 14, residentialBase: 12, parkingBase: 70, radius: 0.020 },
+  { lat: 47.6130, lng: -122.2010, name: "Bellevue Downtown", citationBase: 210, poiBase: 14, residentialBase: 8, parkingBase: 95, radius: 0.025 },
+  { lat: 47.6160, lng: -122.1880, name: "Wilburton", citationBase: 90, poiBase: 7, residentialBase: 60, parkingBase: 15, radius: 0.022 },
+  { lat: 47.6760, lng: -122.2040, name: "Kirkland Waterfront", citationBase: 55, poiBase: 5, residentialBase: 72, parkingBase: 8, radius: 0.022 },
+  { lat: 47.6250, lng: -122.2250, name: "Medina / Clyde Hill", citationBase: 5, poiBase: 1, residentialBase: 92, parkingBase: 0, radius: 0.022 },
+  { lat: 47.6730, lng: -122.1220, name: "Redmond", citationBase: 70, poiBase: 6, residentialBase: 40, parkingBase: 25, radius: 0.025 },
+  { lat: 47.6100, lng: -122.1700, name: "Crossroads", citationBase: 75, poiBase: 6, residentialBase: 55, parkingBase: 18, radius: 0.022 },
+  { lat: 47.5850, lng: -122.1500, name: "Eastgate", citationBase: 45, poiBase: 4, residentialBase: 65, parkingBase: 10, radius: 0.022 },
+  { lat: 47.5900, lng: -122.2200, name: "Somerset", citationBase: 20, poiBase: 2, residentialBase: 82, parkingBase: 2, radius: 0.020 },
+  { lat: 47.5800, lng: -122.3600, name: "White Center", citationBase: 40, poiBase: 3, residentialBase: 60, parkingBase: 8, radius: 0.020 },
+  { lat: 47.6300, lng: -122.3600, name: "Queen Anne", citationBase: 110, poiBase: 9, residentialBase: 40, parkingBase: 20, radius: 0.022 },
+  { lat: 47.5500, lng: -122.3000, name: "Beacon Hill", citationBase: 55, poiBase: 4, residentialBase: 65, parkingBase: 8, radius: 0.022 },
+  { lat: 47.6900, lng: -122.2950, name: "Lake City", citationBase: 35, poiBase: 3, residentialBase: 70, parkingBase: 5, radius: 0.020 },
+  { lat: 47.5250, lng: -122.3600, name: "Burien Edge", citationBase: 25, poiBase: 2, residentialBase: 55, parkingBase: 4, radius: 0.020 },
+];
+
+function seededRandom(seed: number): () => number {
+  let s = seed;
+  return () => {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    return s / 0x7fffffff;
+  };
+}
+
+function distanceDeg(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const dlat = lat1 - lat2;
+  const dlng = (lng1 - lng2) * Math.cos((lat1 * Math.PI) / 180);
+  return Math.sqrt(dlat * dlat + dlng * dlng);
+}
+
+function interpolateFromZones(lat: number, lng: number, field: keyof ZoneCenter, rng: () => number): number {
+  let totalWeight = 0;
+  let totalValue = 0;
+
+  for (const z of ZONE_CENTERS) {
+    const dist = distanceDeg(lat, lng, z.lat, z.lng);
+    const r = z.radius * 3;
+    if (dist > r) continue;
+    const w = Math.max(0, 1 - dist / r);
+    const wCube = w * w * w;
+    totalWeight += wCube;
+    totalValue += wCube * (z[field] as number);
   }
-  const coords: [number, number][] = [];
-  const latStep = (latMax - latMin) / steps;
-  const lngStep = (lngMax - lngMin) / steps;
-  for (let i = 0; i <= steps; i++) coords.push([lngMin + lngStep * i, latMin]);
-  for (let i = 0; i <= steps; i++) coords.push([lngMax, latMin + latStep * i]);
-  for (let i = steps; i >= 0; i--) coords.push([lngMin + lngStep * i, latMax]);
-  for (let i = steps; i >= 0; i--) coords.push([lngMin, latMin + latStep * i]);
-  coords.push([lngMin, latMin]);
+
+  if (totalWeight === 0) return 0;
+  const base = totalValue / totalWeight;
+  const jitter = 1 + (rng() - 0.5) * 0.25;
+  return Math.max(0, Math.round(base * jitter));
+}
+
+function findNeighborhoodName(lat: number, lng: number): string {
+  let minDist = Infinity;
+  let name = "Unknown";
+  for (const z of ZONE_CENTERS) {
+    const d = distanceDeg(lat, lng, z.lat, z.lng);
+    if (d < minDist) {
+      minDist = d;
+      name = z.name;
+    }
+  }
+  return name;
+}
+
+export function generateHexGrid(): HexRaw[] {
+  const rng = seededRandom(42);
+  const hexSet = new Set<string>();
+
+  const latMin = 47.50;
+  const latMax = 47.72;
+  const lngMin = -122.42;
+  const lngMax = -122.08;
+
+  const step = 0.004;
+  for (let lat = latMin; lat <= latMax; lat += step) {
+    for (let lng = lngMin; lng <= lngMax; lng += step) {
+      const h3Index = latLngToCell(lat, lng, TUNABLE.H3_RESOLUTION);
+      hexSet.add(h3Index);
+    }
+  }
+
+  const hexes: HexRaw[] = [];
+  for (const h3Index of hexSet) {
+    const [lat, lng] = cellToLatLng(h3Index);
+
+    if (lat < latMin || lat > latMax || lng < lngMin || lng > lngMax) continue;
+
+    const citationCount = interpolateFromZones(lat, lng, "citationBase", rng);
+    const poiCount = interpolateFromZones(lat, lng, "poiBase", rng);
+    const residentialParcelCount = interpolateFromZones(lat, lng, "residentialBase", rng);
+    const publicParkingSpots = interpolateFromZones(lat, lng, "parkingBase", rng);
+    const neighborhoodName = findNeighborhoodName(lat, lng);
+
+    hexes.push({
+      h3Index,
+      lat,
+      lng,
+      citationCount,
+      poiCount,
+      residentialParcelCount,
+      publicParkingSpots,
+      neighborhoodName,
+    });
+  }
+
+  return hexes;
+}
+
+export function getHexBoundaryGeoJson(h3Index: string): [number, number][] {
+  const boundary = cellToBoundary(h3Index);
+  const coords: [number, number][] = boundary.map(([lat, lng]) => [lng, lat]);
+  coords.push(coords[0]);
   return coords;
 }
 
-export const SEATTLE_NEIGHBORHOODS: NeighborhoodRaw[] = [
-  {
-    id: "south-lake-union",
-    name: "South Lake Union",
-    city: "seattle",
-    demandIndex: 92,
-    publicScarcityIndex: 38,
-    residentialSupplyIndex: 12,
-    citationDensity: 4820,
-    poiProximityScore: 91,
-    commuterDensity: 18400,
-    residentialParcelDensity: 28,
-    commercialParkingCount: 18,
-    zoningType: "commercial",
-    neighborhoodType: "urban-core",
-    centroid: [47.622, -122.338],
-    polygon: makeBox(47.613, 47.631, -122.347, -122.328),
-  },
-  {
-    id: "pioneer-square",
-    name: "Pioneer Square",
-    city: "seattle",
-    demandIndex: 96,
-    publicScarcityIndex: 18,
-    residentialSupplyIndex: 5,
-    citationDensity: 6100,
-    poiProximityScore: 98,
-    commuterDensity: 22000,
-    residentialParcelDensity: 12,
-    commercialParkingCount: 24,
-    zoningType: "commercial",
-    neighborhoodType: "urban-core",
-    centroid: [47.6, -122.332],
-    polygon: makeBox(47.595, 47.608, -122.337, -122.325),
-  },
-  {
-    id: "capitol-hill",
-    name: "Capitol Hill",
-    city: "seattle",
-    demandIndex: 75,
-    publicScarcityIndex: 74,
-    residentialSupplyIndex: 60,
-    citationDensity: 3100,
-    poiProximityScore: 76,
-    commuterDensity: 9200,
-    residentialParcelDensity: 210,
-    commercialParkingCount: 7,
-    zoningType: "mixed",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.619, -122.314],
-    polygon: makeBox(47.612, 47.627, -122.328, -122.298),
-  },
-  {
-    id: "madrona-leschi",
-    name: "Madrona / Leschi",
-    city: "seattle",
-    demandIndex: 68,
-    publicScarcityIndex: 88,
-    residentialSupplyIndex: 78,
-    citationDensity: 1850,
-    poiProximityScore: 65,
-    commuterDensity: 4800,
-    residentialParcelDensity: 420,
-    commercialParkingCount: 2,
-    zoningType: "mixed",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.61, -122.282],
-    polygon: makeBox(47.602, 47.62, -122.298, -122.265),
-  },
-  {
-    id: "columbia-city",
-    name: "Columbia City",
-    city: "seattle",
-    demandIndex: 60,
-    publicScarcityIndex: 90,
-    residentialSupplyIndex: 75,
-    citationDensity: 1400,
-    poiProximityScore: 57,
-    commuterDensity: 3900,
-    residentialParcelDensity: 380,
-    commercialParkingCount: 2,
-    zoningType: "mixed",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.565, -122.283],
-    polygon: makeBox(47.555, 47.578, -122.298, -122.265),
-  },
-  {
-    id: "wallingford",
-    name: "Wallingford",
-    city: "seattle",
-    demandIndex: 65,
-    publicScarcityIndex: 85,
-    residentialSupplyIndex: 80,
-    citationDensity: 1620,
-    poiProximityScore: 62,
-    commuterDensity: 5200,
-    residentialParcelDensity: 445,
-    commercialParkingCount: 2,
-    zoningType: "mixed",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.661, -122.334],
-    polygon: makeBox(47.655, 47.669, -122.348, -122.317),
-  },
-  {
-    id: "west-seattle-junction",
-    name: "West Seattle Junction",
-    city: "seattle",
-    demandIndex: 58,
-    publicScarcityIndex: 86,
-    residentialSupplyIndex: 82,
-    citationDensity: 1380,
-    poiProximityScore: 56,
-    commuterDensity: 4200,
-    residentialParcelDensity: 460,
-    commercialParkingCount: 2,
-    zoningType: "mixed",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.563, -122.376],
-    polygon: makeBox(47.555, 47.574, -122.39, -122.362),
-  },
-  {
-    id: "fremont",
-    name: "Fremont",
-    city: "seattle",
-    demandIndex: 72,
-    publicScarcityIndex: 70,
-    residentialSupplyIndex: 52,
-    citationDensity: 2400,
-    poiProximityScore: 70,
-    commuterDensity: 7800,
-    residentialParcelDensity: 240,
-    commercialParkingCount: 5,
-    zoningType: "mixed",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.651, -122.351],
-    polygon: makeBox(47.645, 47.66, -122.365, -122.337),
-  },
-  {
-    id: "ballard",
-    name: "Ballard",
-    city: "seattle",
-    demandIndex: 68,
-    publicScarcityIndex: 72,
-    residentialSupplyIndex: 58,
-    citationDensity: 2100,
-    poiProximityScore: 66,
-    commuterDensity: 6800,
-    residentialParcelDensity: 280,
-    commercialParkingCount: 4,
-    zoningType: "mixed",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.665, -122.382],
-    polygon: makeBox(47.655, 47.678, -122.398, -122.363),
-  },
-  {
-    id: "u-district",
-    name: "University District",
-    city: "seattle",
-    demandIndex: 78,
-    publicScarcityIndex: 64,
-    residentialSupplyIndex: 45,
-    citationDensity: 2900,
-    poiProximityScore: 79,
-    commuterDensity: 11200,
-    residentialParcelDensity: 180,
-    commercialParkingCount: 9,
-    zoningType: "mixed",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.66, -122.313],
-    polygon: makeBox(47.651, 47.669, -122.325, -122.295),
-  },
-  {
-    id: "greenwood",
-    name: "Greenwood",
-    city: "seattle",
-    demandIndex: 35,
-    publicScarcityIndex: 90,
-    residentialSupplyIndex: 82,
-    citationDensity: 680,
-    poiProximityScore: 33,
-    commuterDensity: 2200,
-    residentialParcelDensity: 510,
-    commercialParkingCount: 1,
-    zoningType: "residential",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.686, -122.356],
-    polygon: makeBox(47.677, 47.698, -122.368, -122.342),
-  },
-  {
-    id: "phinney-ridge",
-    name: "Phinney Ridge",
-    city: "seattle",
-    demandIndex: 30,
-    publicScarcityIndex: 92,
-    residentialSupplyIndex: 85,
-    citationDensity: 520,
-    poiProximityScore: 28,
-    commuterDensity: 1900,
-    residentialParcelDensity: 530,
-    commercialParkingCount: 1,
-    zoningType: "residential",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.674, -122.352],
-    polygon: makeBox(47.666, 47.684, -122.361, -122.34),
-  },
-  {
-    id: "magnolia",
-    name: "Magnolia",
-    city: "seattle",
-    demandIndex: 22,
-    publicScarcityIndex: 93,
-    residentialSupplyIndex: 90,
-    citationDensity: 380,
-    poiProximityScore: 20,
-    commuterDensity: 1400,
-    residentialParcelDensity: 580,
-    commercialParkingCount: 1,
-    zoningType: "residential",
-    neighborhoodType: "outer-suburb",
-    centroid: [47.646, -122.4],
-    polygon: makeBox(47.634, 47.66, -122.418, -122.382),
-  },
-  {
-    id: "georgetown",
-    name: "Georgetown",
-    city: "seattle",
-    demandIndex: 48,
-    publicScarcityIndex: 70,
-    residentialSupplyIndex: 42,
-    citationDensity: 1050,
-    poiProximityScore: 46,
-    commuterDensity: 3800,
-    residentialParcelDensity: 160,
-    commercialParkingCount: 5,
-    zoningType: "mixed",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.545, -122.316],
-    polygon: makeBox(47.535, 47.558, -122.33, -122.302),
-  },
-  {
-    id: "international-district",
-    name: "International District",
-    city: "seattle",
-    demandIndex: 85,
-    publicScarcityIndex: 35,
-    residentialSupplyIndex: 18,
-    citationDensity: 3800,
-    poiProximityScore: 88,
-    commuterDensity: 14200,
-    residentialParcelDensity: 55,
-    commercialParkingCount: 14,
-    zoningType: "commercial",
-    neighborhoodType: "urban-core",
-    centroid: [47.598, -122.323],
-    polygon: makeBox(47.593, 47.607, -122.33, -122.314),
-  },
-  {
-    id: "bellevue-downtown",
-    name: "Bellevue Downtown",
-    city: "seattle",
-    demandIndex: 88,
-    publicScarcityIndex: 14,
-    residentialSupplyIndex: 10,
-    citationDensity: 4200,
-    poiProximityScore: 86,
-    commuterDensity: 17500,
-    residentialParcelDensity: 25,
-    commercialParkingCount: 22,
-    zoningType: "commercial",
-    neighborhoodType: "urban-core",
-    centroid: [47.613, -122.201],
-    polygon: makeBox(47.604, 47.624, -122.215, -122.184),
-  },
-  {
-    id: "kirkland",
-    name: "Kirkland Waterfront",
-    city: "seattle",
-    demandIndex: 55,
-    publicScarcityIndex: 80,
-    residentialSupplyIndex: 80,
-    citationDensity: 1280,
-    poiProximityScore: 53,
-    commuterDensity: 4100,
-    residentialParcelDensity: 395,
-    commercialParkingCount: 4,
-    zoningType: "mixed",
-    neighborhoodType: "inner-suburb",
-    centroid: [47.676, -122.204],
-    polygon: makeBox(47.666, 47.685, -122.218, -122.186),
-  },
-  {
-    id: "medina",
-    name: "Medina / Clyde Hill",
-    city: "seattle",
-    demandIndex: 8,
-    publicScarcityIndex: 98,
-    residentialSupplyIndex: 95,
-    citationDensity: 95,
-    poiProximityScore: 7,
-    commuterDensity: 420,
-    residentialParcelDensity: 610,
-    commercialParkingCount: 0,
-    zoningType: "residential",
-    neighborhoodType: "rural",
-    centroid: [47.625, -122.225],
-    polygon: makeBox(47.614, 47.638, -122.242, -122.208),
-  },
-  {
-    id: "redmond",
-    name: "Redmond",
-    city: "seattle",
-    demandIndex: 60,
-    publicScarcityIndex: 54,
-    residentialSupplyIndex: 40,
-    citationDensity: 1380,
-    poiProximityScore: 58,
-    commuterDensity: 6800,
-    residentialParcelDensity: 190,
-    commercialParkingCount: 10,
-    zoningType: "mixed",
-    neighborhoodType: "outer-suburb",
-    centroid: [47.673, -122.122],
-    polygon: makeBox(47.663, 47.685, -122.14, -122.103),
-  },
-  {
-    id: "bothell-kenmore",
-    name: "Bothell / Kenmore",
-    city: "seattle",
-    demandIndex: 10,
-    publicScarcityIndex: 94,
-    residentialSupplyIndex: 92,
-    citationDensity: 130,
-    poiProximityScore: 9,
-    commuterDensity: 560,
-    residentialParcelDensity: 590,
-    commercialParkingCount: 0,
-    zoningType: "residential",
-    neighborhoodType: "rural",
-    centroid: [47.763, -122.207],
-    polygon: makeBox(47.75, 47.783, -122.228, -122.186),
-  },
-];
+export function getHexAreaKm2(h3Index: string): number {
+  return cellArea(h3Index, UNITS.km2);
+}
+
+export function getHexNeighbors(h3Index: string, rings: number): string[] {
+  return gridDisk(h3Index, rings);
+}

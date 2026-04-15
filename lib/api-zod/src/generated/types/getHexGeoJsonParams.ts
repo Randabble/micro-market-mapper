@@ -5,7 +5,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface Centroid {
-  lat: number;
-  lng: number;
-}
+export type GetHexGeoJsonParams = {
+  layer?: string;
+};

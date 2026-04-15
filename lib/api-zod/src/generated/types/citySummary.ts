@@ -7,14 +7,18 @@
 
 export interface CitySummary {
   city: string;
-  totalNeighborhoods: number;
-  goldilocksZoneCount: number;
-  microMarketCount: number;
+  totalHexes: number;
+  hexesAboveThreshold: number;
+  launchZoneCount: number;
   avgAlphaScore: number;
-  topNeighborhood: string;
-  topScore: number;
-  medianDemandIndex: number;
-  medianSupplyIndex: number;
+  topZoneName: string;
+  topZoneScore: number;
+  topHexH3: string;
+  topHexAlpha: number;
+  topHexLat: number;
+  topHexLng: number;
+  medianDemandScore: number;
+  medianSupplyScore: number;
   totalEstimatedDriveways: number;
   algorithmVersion: string;
 }
