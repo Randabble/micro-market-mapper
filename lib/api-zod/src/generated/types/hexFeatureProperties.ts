@@ -7,6 +7,7 @@
 
 export interface HexFeatureProperties {
   h3Index: string;
+  resolution: number;
   alphaScore: number;
   demandScore: number;
   supplyScore: number;

@@ -14,4 +14,5 @@ export * from "./hexFeatureProperties";
 export * from "./hexGeoJson";
 export * from "./launchZone";
 export * from "./listHexesParams";
+export * from "./resolutionBreakdown";
 export * from "./scoredHex";

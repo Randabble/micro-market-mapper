@@ -5,12 +5,12 @@ import {
   TUNABLE,
   type HexRaw,
 } from "./gis-data";
-import { cellToLatLng, gridDisk } from "h3-js";
 
 export interface ScoredHex {
   h3Index: string;
   lat: number;
   lng: number;
+  resolution: number;
   demandScore: number;
   supplyScore: number;
   competitionPenalty: number;
@@ -40,6 +40,7 @@ export interface LaunchZone {
 
 export interface HexFeatureProperties {
   h3Index: string;
+  resolution: number;
   alphaScore: number;
   demandScore: number;
   supplyScore: number;
@@ -79,6 +80,7 @@ export interface CitySummary {
   medianSupplyScore: number;
   totalEstimatedDriveways: number;
   algorithmVersion: string;
+  resolutionBreakdown: { res7: number; res8: number; res9: number };
 }
 
 let cachedResult: {
@@ -117,39 +119,36 @@ function computeDemandRaw(hex: HexRaw, areaKm2: number): number {
   return (hex.citationCount / areaKm2) * Math.log(1 + hex.poiCount);
 }
 
-function computeSupplyRaw(hex: HexRaw, allHexes: HexRaw[], hexMap: Map<string, HexRaw>): number {
-  const neighbors = gridDisk(hex.h3Index, 3);
-  let total = 0;
-
-  for (const nIdx of neighbors) {
-    const neighbor = hexMap.get(nIdx);
-    if (!neighbor || neighbor.residentialParcelCount === 0) continue;
-
-    const dist = haversineDist(hex.lat, hex.lng, neighbor.lat, neighbor.lng);
-    if (dist > TUNABLE.WALK_RADIUS_M) continue;
-
-    total += neighbor.residentialParcelCount / (dist + 1);
+function findNearbyHexes(hex: HexRaw, allHexes: HexRaw[], radiusM: number): HexRaw[] {
+  const result: HexRaw[] = [];
+  for (const other of allHexes) {
+    const dist = haversineDist(hex.lat, hex.lng, other.lat, other.lng);
+    if (dist <= radiusM) result.push(other);
   }
+  return result;
+}
 
+function computeSupplyRaw(hex: HexRaw, allHexes: HexRaw[], areaMap: Map<string, number>): number {
+  const nearby = findNearbyHexes(hex, allHexes, TUNABLE.WALK_RADIUS_M);
+  let total = 0;
+  for (const neighbor of nearby) {
+    if (neighbor.residentialParcelCount === 0) continue;
+    const nArea = areaMap.get(neighbor.h3Index) || 1;
+    const density = neighbor.residentialParcelCount / nArea;
+    const dist = haversineDist(hex.lat, hex.lng, neighbor.lat, neighbor.lng);
+    total += density / (dist + 1);
+  }
   return total;
 }
 
-function computeCompetitionRaw(hex: HexRaw, hexMap: Map<string, HexRaw>, areaKm2: number): number {
-  const neighbors = gridDisk(hex.h3Index, 2);
-  let totalSpots = 0;
-
-  for (const nIdx of neighbors) {
-    const neighbor = hexMap.get(nIdx);
-    if (!neighbor) continue;
-
-    const dist = haversineDist(hex.lat, hex.lng, neighbor.lat, neighbor.lng);
-    if (dist > TUNABLE.COMPETITION_RADIUS_M) continue;
-
-    totalSpots += neighbor.publicParkingSpots;
+function computeCompetitionRaw(hex: HexRaw, allHexes: HexRaw[], areaMap: Map<string, number>): number {
+  const nearby = findNearbyHexes(hex, allHexes, TUNABLE.COMPETITION_RADIUS_M);
+  let totalDensity = 0;
+  for (const neighbor of nearby) {
+    const nArea = areaMap.get(neighbor.h3Index) || 1;
+    totalDensity += neighbor.publicParkingSpots / nArea;
   }
-
-  if (areaKm2 === 0) return 0;
-  return totalSpots / areaKm2;
+  return totalDensity;
 }
 
 function dbscanCluster(
@@ -172,8 +171,6 @@ function dbscanCluster(
     }
     return neighbors;
   }
-
-  // Standard DBSCAN counts the point itself, so core point needs neighbors.length >= minPts - 1
 
   for (let i = 0; i < n; i++) {
     if (visited[i]) continue;
@@ -224,14 +221,18 @@ function computeAll(): { hexes: ScoredHex[]; launchZones: LaunchZone[] } {
   if (cachedResult) return cachedResult;
 
   const rawHexes = generateHexGrid();
-  const hexMap = new Map<string, HexRaw>();
-  for (const h of rawHexes) hexMap.set(h.h3Index, h);
 
-  const sampleArea = getHexAreaKm2(rawHexes[0].h3Index);
+  const areaMap = new Map<string, number>();
+  const hexAreas: number[] = [];
+  for (const h of rawHexes) {
+    const a = getHexAreaKm2(h.h3Index);
+    areaMap.set(h.h3Index, a);
+    hexAreas.push(a);
+  }
 
-  const rawDemand = rawHexes.map((h) => computeDemandRaw(h, sampleArea));
-  const rawSupply = rawHexes.map((h) => computeSupplyRaw(h, rawHexes, hexMap));
-  const rawCompetition = rawHexes.map((h) => computeCompetitionRaw(h, hexMap, sampleArea));
+  const rawDemand = rawHexes.map((h, i) => computeDemandRaw(h, hexAreas[i]));
+  const rawSupply = rawHexes.map((h) => computeSupplyRaw(h, rawHexes, areaMap));
+  const rawCompetition = rawHexes.map((h) => computeCompetitionRaw(h, rawHexes, areaMap));
 
   const normDemand = minMaxNormalize(rawDemand);
   const normSupply = minMaxNormalize(rawSupply);
@@ -268,6 +269,7 @@ function computeAll(): { hexes: ScoredHex[]; launchZones: LaunchZone[] } {
     h3Index: h.h3Index,
     lat: h.lat,
     lng: h.lng,
+    resolution: h.resolution,
     demandScore: Math.round(normDemand[i] * 10) / 10,
     supplyScore: Math.round(normSupply[i] * 10) / 10,
     competitionPenalty: Math.round(normPenalty[i] * 1000) / 1000,
@@ -385,6 +387,7 @@ export function getHexGeoJson(layer = "alpha"): HexGeoJson {
     type: "Feature",
     properties: {
       h3Index: h.h3Index,
+      resolution: h.resolution,
       alphaScore: h.alphaScore,
       demandScore: h.demandScore,
       supplyScore: h.supplyScore,
@@ -432,6 +435,10 @@ export function getCitySummary(): CitySummary {
 
   const topZone = launchZones[0];
 
+  const res7 = hexes.filter((h) => h.resolution === 7).length;
+  const res8 = hexes.filter((h) => h.resolution === 8).length;
+  const res9 = hexes.filter((h) => h.resolution === 9).length;
+
   return {
     city: "Seattle / Bellevue",
     totalHexes: hexes.length,
@@ -452,6 +459,7 @@ export function getCitySummary(): CitySummary {
       (s, h) => s + h.estimatedDriveways,
       0
     ),
-    algorithmVersion: "v3.0-h3-dbscan",
+    algorithmVersion: "v3.1-multiRes-h3-dbscan",
+    resolutionBreakdown: { res7, res8, res9 },
   };
 }

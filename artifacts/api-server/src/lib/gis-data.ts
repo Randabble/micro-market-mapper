@@ -1,7 +1,6 @@
-import { latLngToCell, cellToBoundary, cellToLatLng, gridDisk, cellArea, UNITS } from "h3-js";
+import { latLngToCell, cellToBoundary, cellToLatLng, cellToChildren, cellToParent, cellArea, UNITS, getResolution } from "h3-js";
 
 export const TUNABLE = {
-  H3_RESOLUTION: 8,
   WALK_RADIUS_M: 800,
   COMPETITION_RADIUS_M: 400,
   ALPHA_THRESHOLD: 40,
@@ -9,18 +8,24 @@ export const TUNABLE = {
   DBSCAN_MIN_SAMPLES: 3,
   COMPETITION_PENALTY_WEIGHT: 0.3,
   DRIVEWAY_RATE: 0.85,
+  RES_DENSE: 9,
+  RES_URBAN: 8,
+  RES_SUBURBAN: 7,
 } as const;
 
 export interface HexRaw {
   h3Index: string;
   lat: number;
   lng: number;
+  resolution: number;
   citationCount: number;
   poiCount: number;
   residentialParcelCount: number;
   publicParkingSpots: number;
   neighborhoodName: string;
 }
+
+type DensityTier = "dense" | "urban" | "suburban";
 
 interface ZoneCenter {
   lat: number;
@@ -31,45 +36,44 @@ interface ZoneCenter {
   residentialBase: number;
   parkingBase: number;
   radius: number;
+  density: DensityTier;
 }
 
 const ZONE_CENTERS: ZoneCenter[] = [
-  { lat: 47.6062, lng: -122.3321, name: "Downtown Seattle", citationBase: 280, poiBase: 18, residentialBase: 5, parkingBase: 120, radius: 0.025 },
-  { lat: 47.6000, lng: -122.3320, name: "Pioneer Square", citationBase: 250, poiBase: 15, residentialBase: 8, parkingBase: 100, radius: 0.020 },
-  { lat: 47.6222, lng: -122.3380, name: "South Lake Union", citationBase: 220, poiBase: 16, residentialBase: 10, parkingBase: 90, radius: 0.022 },
-  { lat: 47.6190, lng: -122.3140, name: "Capitol Hill", citationBase: 150, poiBase: 12, residentialBase: 55, parkingBase: 25, radius: 0.025 },
-  { lat: 47.6100, lng: -122.2820, name: "Madrona / Leschi", citationBase: 80, poiBase: 6, residentialBase: 75, parkingBase: 5, radius: 0.025 },
-  { lat: 47.5650, lng: -122.2830, name: "Columbia City", citationBase: 65, poiBase: 5, residentialBase: 70, parkingBase: 6, radius: 0.025 },
-  { lat: 47.6610, lng: -122.3340, name: "Wallingford", citationBase: 70, poiBase: 6, residentialBase: 80, parkingBase: 4, radius: 0.025 },
-  { lat: 47.5630, lng: -122.3760, name: "West Seattle Junction", citationBase: 60, poiBase: 5, residentialBase: 78, parkingBase: 5, radius: 0.025 },
-  { lat: 47.6510, lng: -122.3510, name: "Fremont", citationBase: 100, poiBase: 8, residentialBase: 45, parkingBase: 15, radius: 0.022 },
-  { lat: 47.6650, lng: -122.3820, name: "Ballard", citationBase: 90, poiBase: 8, residentialBase: 50, parkingBase: 12, radius: 0.025 },
-  { lat: 47.6600, lng: -122.3130, name: "University District", citationBase: 130, poiBase: 11, residentialBase: 35, parkingBase: 30, radius: 0.022 },
-  { lat: 47.6860, lng: -122.3560, name: "Greenwood", citationBase: 30, poiBase: 3, residentialBase: 85, parkingBase: 2, radius: 0.022 },
-  { lat: 47.6740, lng: -122.3520, name: "Phinney Ridge", citationBase: 25, poiBase: 2, residentialBase: 88, parkingBase: 2, radius: 0.022 },
-  { lat: 47.6460, lng: -122.4000, name: "Magnolia", citationBase: 15, poiBase: 2, residentialBase: 90, parkingBase: 1, radius: 0.025 },
-  { lat: 47.5450, lng: -122.3160, name: "Georgetown", citationBase: 50, poiBase: 4, residentialBase: 35, parkingBase: 15, radius: 0.020 },
-  { lat: 47.5980, lng: -122.3230, name: "International District", citationBase: 200, poiBase: 14, residentialBase: 12, parkingBase: 70, radius: 0.020 },
-  { lat: 47.6130, lng: -122.2010, name: "Bellevue Downtown", citationBase: 210, poiBase: 14, residentialBase: 8, parkingBase: 95, radius: 0.025 },
-  { lat: 47.6160, lng: -122.1880, name: "Wilburton", citationBase: 90, poiBase: 7, residentialBase: 60, parkingBase: 15, radius: 0.022 },
-  { lat: 47.6760, lng: -122.2040, name: "Kirkland Waterfront", citationBase: 55, poiBase: 5, residentialBase: 72, parkingBase: 8, radius: 0.022 },
-  { lat: 47.6250, lng: -122.2250, name: "Medina / Clyde Hill", citationBase: 5, poiBase: 1, residentialBase: 92, parkingBase: 0, radius: 0.022 },
-  { lat: 47.6730, lng: -122.1220, name: "Redmond", citationBase: 70, poiBase: 6, residentialBase: 40, parkingBase: 25, radius: 0.025 },
-  { lat: 47.6100, lng: -122.1700, name: "Crossroads", citationBase: 75, poiBase: 6, residentialBase: 55, parkingBase: 18, radius: 0.022 },
-  { lat: 47.5850, lng: -122.1500, name: "Eastgate", citationBase: 45, poiBase: 4, residentialBase: 65, parkingBase: 10, radius: 0.022 },
-  { lat: 47.5900, lng: -122.2200, name: "Somerset", citationBase: 20, poiBase: 2, residentialBase: 82, parkingBase: 2, radius: 0.020 },
-  { lat: 47.5800, lng: -122.3600, name: "White Center", citationBase: 40, poiBase: 3, residentialBase: 60, parkingBase: 8, radius: 0.020 },
-  { lat: 47.6300, lng: -122.3600, name: "Queen Anne", citationBase: 110, poiBase: 9, residentialBase: 40, parkingBase: 20, radius: 0.022 },
-  { lat: 47.5500, lng: -122.3000, name: "Beacon Hill", citationBase: 55, poiBase: 4, residentialBase: 65, parkingBase: 8, radius: 0.022 },
-  { lat: 47.6900, lng: -122.2950, name: "Lake City", citationBase: 35, poiBase: 3, residentialBase: 70, parkingBase: 5, radius: 0.020 },
-  { lat: 47.5250, lng: -122.3600, name: "Burien Edge", citationBase: 25, poiBase: 2, residentialBase: 55, parkingBase: 4, radius: 0.020 },
+  { lat: 47.6062, lng: -122.3321, name: "Downtown Seattle", citationBase: 280, poiBase: 18, residentialBase: 5, parkingBase: 120, radius: 0.025, density: "urban" },
+  { lat: 47.6000, lng: -122.3320, name: "Pioneer Square", citationBase: 250, poiBase: 15, residentialBase: 8, parkingBase: 100, radius: 0.020, density: "urban" },
+  { lat: 47.6222, lng: -122.3380, name: "South Lake Union", citationBase: 220, poiBase: 16, residentialBase: 10, parkingBase: 90, radius: 0.022, density: "urban" },
+  { lat: 47.6190, lng: -122.3140, name: "Capitol Hill", citationBase: 150, poiBase: 12, residentialBase: 55, parkingBase: 25, radius: 0.025, density: "dense" },
+  { lat: 47.6100, lng: -122.2820, name: "Madrona / Leschi", citationBase: 80, poiBase: 6, residentialBase: 75, parkingBase: 5, radius: 0.025, density: "urban" },
+  { lat: 47.5650, lng: -122.2830, name: "Columbia City", citationBase: 65, poiBase: 5, residentialBase: 70, parkingBase: 6, radius: 0.025, density: "urban" },
+  { lat: 47.6610, lng: -122.3340, name: "Wallingford", citationBase: 70, poiBase: 6, residentialBase: 80, parkingBase: 4, radius: 0.025, density: "urban" },
+  { lat: 47.5630, lng: -122.3760, name: "West Seattle Junction", citationBase: 60, poiBase: 5, residentialBase: 78, parkingBase: 5, radius: 0.025, density: "urban" },
+  { lat: 47.6510, lng: -122.3510, name: "Fremont", citationBase: 100, poiBase: 8, residentialBase: 45, parkingBase: 15, radius: 0.022, density: "urban" },
+  { lat: 47.6650, lng: -122.3820, name: "Ballard", citationBase: 90, poiBase: 8, residentialBase: 50, parkingBase: 12, radius: 0.025, density: "urban" },
+  { lat: 47.6600, lng: -122.3130, name: "University District", citationBase: 130, poiBase: 11, residentialBase: 35, parkingBase: 30, radius: 0.022, density: "dense" },
+  { lat: 47.6860, lng: -122.3560, name: "Greenwood", citationBase: 30, poiBase: 3, residentialBase: 85, parkingBase: 2, radius: 0.022, density: "suburban" },
+  { lat: 47.6740, lng: -122.3520, name: "Phinney Ridge", citationBase: 25, poiBase: 2, residentialBase: 88, parkingBase: 2, radius: 0.022, density: "suburban" },
+  { lat: 47.6460, lng: -122.4000, name: "Magnolia", citationBase: 15, poiBase: 2, residentialBase: 90, parkingBase: 1, radius: 0.025, density: "suburban" },
+  { lat: 47.5450, lng: -122.3160, name: "Georgetown", citationBase: 50, poiBase: 4, residentialBase: 35, parkingBase: 15, radius: 0.020, density: "suburban" },
+  { lat: 47.5980, lng: -122.3230, name: "International District", citationBase: 200, poiBase: 14, residentialBase: 12, parkingBase: 70, radius: 0.020, density: "urban" },
+  { lat: 47.6130, lng: -122.2010, name: "Bellevue Downtown", citationBase: 210, poiBase: 14, residentialBase: 8, parkingBase: 95, radius: 0.025, density: "urban" },
+  { lat: 47.6160, lng: -122.1880, name: "Wilburton", citationBase: 90, poiBase: 7, residentialBase: 60, parkingBase: 15, radius: 0.022, density: "urban" },
+  { lat: 47.6760, lng: -122.2040, name: "Kirkland Waterfront", citationBase: 55, poiBase: 5, residentialBase: 72, parkingBase: 8, radius: 0.022, density: "suburban" },
+  { lat: 47.6250, lng: -122.2250, name: "Medina / Clyde Hill", citationBase: 5, poiBase: 1, residentialBase: 92, parkingBase: 0, radius: 0.022, density: "suburban" },
+  { lat: 47.6730, lng: -122.1220, name: "Redmond", citationBase: 70, poiBase: 6, residentialBase: 40, parkingBase: 25, radius: 0.025, density: "suburban" },
+  { lat: 47.6100, lng: -122.1700, name: "Crossroads", citationBase: 75, poiBase: 6, residentialBase: 55, parkingBase: 18, radius: 0.022, density: "suburban" },
+  { lat: 47.5850, lng: -122.1500, name: "Eastgate", citationBase: 45, poiBase: 4, residentialBase: 65, parkingBase: 10, radius: 0.022, density: "suburban" },
+  { lat: 47.5900, lng: -122.2200, name: "Somerset", citationBase: 20, poiBase: 2, residentialBase: 82, parkingBase: 2, radius: 0.020, density: "suburban" },
+  { lat: 47.5800, lng: -122.3600, name: "White Center", citationBase: 40, poiBase: 3, residentialBase: 60, parkingBase: 8, radius: 0.020, density: "suburban" },
+  { lat: 47.6300, lng: -122.3600, name: "Queen Anne", citationBase: 110, poiBase: 9, residentialBase: 40, parkingBase: 20, radius: 0.022, density: "urban" },
+  { lat: 47.5500, lng: -122.3000, name: "Beacon Hill", citationBase: 55, poiBase: 4, residentialBase: 65, parkingBase: 8, radius: 0.022, density: "suburban" },
+  { lat: 47.6900, lng: -122.2950, name: "Lake City", citationBase: 35, poiBase: 3, residentialBase: 70, parkingBase: 5, radius: 0.020, density: "suburban" },
+  { lat: 47.5250, lng: -122.3600, name: "Burien Edge", citationBase: 25, poiBase: 2, residentialBase: 55, parkingBase: 4, radius: 0.020, density: "suburban" },
 ];
 
 type LatLngPoly = [number, number][];
 
 const WATER_BODIES: LatLngPoly[] = [
-  // Lake Washington — west shore (Seattle side) traced north to south,
-  // then east shore (Bellevue/Kirkland side) south to north
   [
     [47.505, -122.262], [47.510, -122.268], [47.518, -122.272],
     [47.528, -122.275], [47.538, -122.278], [47.548, -122.280],
@@ -92,8 +96,6 @@ const WATER_BODIES: LatLngPoly[] = [
     [47.548, -122.296], [47.538, -122.294], [47.528, -122.292],
     [47.518, -122.290], [47.510, -122.285], [47.505, -122.280],
   ],
-  // Puget Sound / Elliott Bay — covers the entire waterfront west of Seattle
-  // from Burien north through Magnolia, Shilshole Bay, up to Shoreline
   [
     [47.500, -122.500], [47.500, -122.408],
     [47.510, -122.405], [47.520, -122.400],
@@ -117,7 +119,6 @@ const WATER_BODIES: LatLngPoly[] = [
     [47.720, -122.418],
     [47.720, -122.500],
   ],
-  // Lake Union + Ship Canal + Portage Bay
   [
     [47.630, -122.350], [47.632, -122.348], [47.635, -122.345],
     [47.637, -122.342], [47.640, -122.344], [47.643, -122.342],
@@ -138,7 +139,6 @@ const WATER_BODIES: LatLngPoly[] = [
     [47.640, -122.352], [47.636, -122.354],
     [47.633, -122.352],
   ],
-  // Salmon Bay / Shilshole Bay — between Ballard and Magnolia
   [
     [47.655, -122.395], [47.658, -122.392], [47.660, -122.388],
     [47.662, -122.384], [47.664, -122.380], [47.666, -122.376],
@@ -148,7 +148,6 @@ const WATER_BODIES: LatLngPoly[] = [
     [47.654, -122.375], [47.654, -122.382],
     [47.654, -122.390], [47.655, -122.395],
   ],
-  // Mercer Island / south Lake Washington east channel
   [
     [47.548, -122.228], [47.555, -122.225], [47.562, -122.222],
     [47.570, -122.218], [47.578, -122.215], [47.585, -122.214],
@@ -158,7 +157,6 @@ const WATER_BODIES: LatLngPoly[] = [
     [47.562, -122.248], [47.555, -122.245],
     [47.548, -122.240],
   ],
-  // Mercer Island / south Lake Washington west channel
   [
     [47.548, -122.248], [47.555, -122.252], [47.562, -122.255],
     [47.570, -122.258], [47.575, -122.260],
@@ -201,7 +199,12 @@ function distanceDeg(lat1: number, lng1: number, lat2: number, lng2: number): nu
   return Math.sqrt(dlat * dlat + dlng * dlng);
 }
 
-function interpolateFromZones(lat: number, lng: number, field: keyof ZoneCenter, rng: () => number): number {
+function coordSeed(lat: number, lng: number, salt: number): number {
+  const raw = Math.floor(lat * 1e6) * 31 + Math.floor(lng * 1e6) * 37 + salt;
+  return (raw & 0x7fffffff) || 1;
+}
+
+function interpolateFromZones(lat: number, lng: number, field: keyof ZoneCenter, fieldIdx: number): number {
   let totalWeight = 0;
   let totalValue = 0;
 
@@ -217,6 +220,7 @@ function interpolateFromZones(lat: number, lng: number, field: keyof ZoneCenter,
 
   if (totalWeight === 0) return 0;
   const base = totalValue / totalWeight;
+  const rng = seededRandom(coordSeed(lat, lng, fieldIdx));
   const jitter = 1 + (rng() - 0.5) * 0.25;
   return Math.max(0, Math.round(base * jitter));
 }
@@ -234,39 +238,104 @@ function findNeighborhoodName(lat: number, lng: number): string {
   return name;
 }
 
-export function generateHexGrid(): HexRaw[] {
-  const rng = seededRandom(42);
-  const hexSet = new Set<string>();
+function getTargetResolution(lat: number, lng: number): number {
+  let minDist = Infinity;
+  let density: DensityTier = "suburban";
+  for (const z of ZONE_CENTERS) {
+    const d = distanceDeg(lat, lng, z.lat, z.lng);
+    if (d < minDist) {
+      minDist = d;
+      density = z.density;
+    }
+  }
+  switch (density) {
+    case "dense": return TUNABLE.RES_DENSE;
+    case "urban": return TUNABLE.RES_URBAN;
+    case "suburban": return TUNABLE.RES_SUBURBAN;
+  }
+}
 
+export function generateHexGrid(): HexRaw[] {
   const latMin = 47.50;
   const latMax = 47.72;
   const lngMin = -122.42;
   const lngMax = -122.08;
 
-  const step = 0.004;
-  for (let lat = latMin; lat <= latMax; lat += step) {
-    for (let lng = lngMin; lng <= lngMax; lng += step) {
-      const h3Index = latLngToCell(lat, lng, TUNABLE.H3_RESOLUTION);
-      hexSet.add(h3Index);
+  const baseRes = TUNABLE.RES_URBAN;
+  const baseStep = 0.004;
+  const baseHexSet = new Set<string>();
+  for (let lat = latMin; lat <= latMax; lat += baseStep) {
+    for (let lng = lngMin; lng <= lngMax; lng += baseStep) {
+      baseHexSet.add(latLngToCell(lat, lng, baseRes));
     }
   }
 
+  const resDecisions = new Map<string, number>();
+  const suburbanParents = new Map<string, Set<string>>();
+
+  for (const h8 of baseHexSet) {
+    const [lat, lng] = cellToLatLng(h8);
+    if (lat < latMin || lat > latMax || lng < lngMin || lng > lngMax) continue;
+    const targetRes = getTargetResolution(lat, lng);
+    resDecisions.set(h8, targetRes);
+
+    if (targetRes === TUNABLE.RES_SUBURBAN) {
+      const parent = cellToParent(h8, TUNABLE.RES_SUBURBAN);
+      if (!suburbanParents.has(parent)) suburbanParents.set(parent, new Set());
+      suburbanParents.get(parent)!.add(h8);
+    }
+  }
+
+  const finalHexSet = new Set<string>();
+  const consumedByParent = new Set<string>();
+
+  for (const [parent, children] of suburbanParents) {
+    const parentChildren = cellToChildren(parent, TUNABLE.RES_URBAN);
+    const allChildrenSuburban = parentChildren.every(
+      (c) => resDecisions.get(c) === TUNABLE.RES_SUBURBAN || !resDecisions.has(c)
+    );
+    if (allChildrenSuburban) {
+      finalHexSet.add(parent);
+      for (const c of parentChildren) consumedByParent.add(c);
+    }
+  }
+
+  for (const h8 of baseHexSet) {
+    if (consumedByParent.has(h8)) continue;
+    const targetRes = resDecisions.get(h8);
+    if (targetRes === undefined) continue;
+
+    if (targetRes === TUNABLE.RES_DENSE) {
+      for (const child of cellToChildren(h8, TUNABLE.RES_DENSE)) {
+        finalHexSet.add(child);
+      }
+    } else {
+      finalHexSet.add(h8);
+    }
+  }
+
+  const refArea = cellArea(latLngToCell(47.6, -122.3, TUNABLE.RES_URBAN), UNITS.km2);
+
   const allHexes: HexRaw[] = [];
-  for (const h3Index of hexSet) {
+  for (const h3Index of finalHexSet) {
     const [lat, lng] = cellToLatLng(h3Index);
 
     if (lat < latMin || lat > latMax || lng < lngMin || lng > lngMax) continue;
 
-    const citationCount = interpolateFromZones(lat, lng, "citationBase", rng);
-    const poiCount = interpolateFromZones(lat, lng, "poiBase", rng);
-    const residentialParcelCount = interpolateFromZones(lat, lng, "residentialBase", rng);
-    const publicParkingSpots = interpolateFromZones(lat, lng, "parkingBase", rng);
+    const hexArea = cellArea(h3Index, UNITS.km2);
+    const areaScale = hexArea / refArea;
+
+    const citationCount = Math.round(interpolateFromZones(lat, lng, "citationBase", 0) * areaScale);
+    const poiCount = Math.max(1, Math.round(interpolateFromZones(lat, lng, "poiBase", 1) * Math.sqrt(areaScale)));
+    const residentialParcelCount = Math.round(interpolateFromZones(lat, lng, "residentialBase", 2) * areaScale);
+    const publicParkingSpots = Math.round(interpolateFromZones(lat, lng, "parkingBase", 3) * areaScale);
     const neighborhoodName = findNeighborhoodName(lat, lng);
 
     allHexes.push({
       h3Index,
       lat,
       lng,
+      resolution: getResolution(h3Index),
       citationCount,
       poiCount,
       residentialParcelCount,
@@ -287,8 +356,4 @@ export function getHexBoundaryGeoJson(h3Index: string): [number, number][] {
 
 export function getHexAreaKm2(h3Index: string): number {
   return cellArea(h3Index, UNITS.km2);
-}
-
-export function getHexNeighbors(h3Index: string, rings: number): string[] {
-  return gridDisk(h3Index, rings);
 }

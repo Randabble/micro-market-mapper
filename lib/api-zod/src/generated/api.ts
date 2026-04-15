@@ -18,6 +18,7 @@ export const ListHexesResponseItem = zod.object({
   h3Index: zod.string(),
   lat: zod.number(),
   lng: zod.number(),
+  resolution: zod.number(),
   demandScore: zod.number(),
   supplyScore: zod.number(),
   competitionPenalty: zod.number(),
@@ -43,6 +44,7 @@ export const GetHexGeoJsonResponse = zod.object({
       type: zod.string(),
       properties: zod.object({
         h3Index: zod.string(),
+        resolution: zod.number(),
         alphaScore: zod.number(),
         demandScore: zod.number(),
         supplyScore: zod.number(),
@@ -67,6 +69,7 @@ export const GetHexResponse = zod.object({
   h3Index: zod.string(),
   lat: zod.number(),
   lng: zod.number(),
+  resolution: zod.number(),
   demandScore: zod.number(),
   supplyScore: zod.number(),
   competitionPenalty: zod.number(),
@@ -96,6 +99,11 @@ export const GetCitySummaryResponse = zod.object({
   medianSupplyScore: zod.number(),
   totalEstimatedDriveways: zod.number(),
   algorithmVersion: zod.string(),
+  resolutionBreakdown: zod.object({
+    res7: zod.number(),
+    res8: zod.number(),
+    res9: zod.number(),
+  }),
 });
 
 export const ListLaunchZonesResponseItem = zod.object({
@@ -139,6 +147,7 @@ export const GetLaunchZoneHexesResponseItem = zod.object({
   h3Index: zod.string(),
   lat: zod.number(),
   lng: zod.number(),
+  resolution: zod.number(),
   demandScore: zod.number(),
   supplyScore: zod.number(),
   competitionPenalty: zod.number(),

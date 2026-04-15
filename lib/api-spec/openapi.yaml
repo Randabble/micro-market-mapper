@@ -150,6 +150,7 @@ components:
         - h3Index
         - lat
         - lng
+        - resolution
         - demandScore
         - supplyScore
         - competitionPenalty
@@ -168,6 +169,8 @@ components:
           type: number
         lng:
           type: number
+        resolution:
+          type: integer
         demandScore:
           type: number
         supplyScore:
@@ -195,6 +198,7 @@ components:
       type: object
       required:
         - h3Index
+        - resolution
         - alphaScore
         - demandScore
         - supplyScore
@@ -205,6 +209,8 @@ components:
       properties:
         h3Index:
           type: string
+        resolution:
+          type: integer
         alphaScore:
           type: number
         demandScore:
@@ -309,6 +315,7 @@ components:
         - medianSupplyScore
         - totalEstimatedDriveways
         - algorithmVersion
+        - resolutionBreakdown
       properties:
         city:
           type: string
@@ -340,3 +347,15 @@ components:
           type: integer
         algorithmVersion:
           type: string
+        resolutionBreakdown:
+          $ref: "#/components/schemas/ResolutionBreakdown"
+    ResolutionBreakdown:
+      type: object
+      required: [res7, res8, res9]
+      properties:
+        res7:
+          type: integer
+        res8:
+          type: integer
+        res9:
+          type: integer

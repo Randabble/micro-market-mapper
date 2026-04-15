@@ -9,6 +9,7 @@ export interface ScoredHex {
   h3Index: string;
   lat: number;
   lng: number;
+  resolution: number;
   demandScore: number;
   supplyScore: number;
   competitionPenalty: number;

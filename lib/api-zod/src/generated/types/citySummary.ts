@@ -4,6 +4,7 @@
  * Api
  * OpenAPI spec version: 0.1.0
  */
+import type { ResolutionBreakdown } from "./resolutionBreakdown";
 
 export interface CitySummary {
   city: string;
@@ -21,4 +22,5 @@ export interface CitySummary {
   medianSupplyScore: number;
   totalEstimatedDriveways: number;
   algorithmVersion: string;
+  resolutionBreakdown: ResolutionBreakdown;
 }

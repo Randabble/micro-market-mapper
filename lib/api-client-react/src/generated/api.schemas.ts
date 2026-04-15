@@ -12,6 +12,7 @@ export interface ScoredHex {
   h3Index: string;
   lat: number;
   lng: number;
+  resolution: number;
   demandScore: number;
   supplyScore: number;
   competitionPenalty: number;
@@ -27,6 +28,7 @@ export interface ScoredHex {
 
 export interface HexFeatureProperties {
   h3Index: string;
+  resolution: number;
   alphaScore: number;
   demandScore: number;
   supplyScore: number;
@@ -66,6 +68,12 @@ export interface LaunchZone {
   label: string;
 }
 
+export interface ResolutionBreakdown {
+  res7: number;
+  res8: number;
+  res9: number;
+}
+
 export interface CitySummary {
   city: string;
   totalHexes: number;
@@ -82,6 +90,7 @@ export interface CitySummary {
   medianSupplyScore: number;
   totalEstimatedDriveways: number;
   algorithmVersion: string;
+  resolutionBreakdown: ResolutionBreakdown;
 }
 
 export type ListHexesParams = {

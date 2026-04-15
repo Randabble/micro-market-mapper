@@ -64,7 +64,7 @@ export function Sidebar({ selectedHexId, selectedLaunchZoneId, onSelectHex, onSe
                           <Hexagon className="w-4 h-4 text-primary" />
                           {selectedHex.neighborhoodName}
                         </CardTitle>
-                        <p className="text-[10px] text-muted-foreground font-mono mt-1">{selectedHex.h3Index}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono mt-1">{selectedHex.h3Index} <span className="text-primary/60">res {selectedHex.resolution}</span></p>
                       </div>
                       <div className="flex flex-col items-end">
                         <div className="text-3xl font-bold text-primary font-mono">{selectedHex.alphaScore.toFixed(1)}</div>
@@ -201,6 +201,28 @@ export function Sidebar({ selectedHexId, selectedLaunchZoneId, onSelectHex, onSe
                 <p className="font-mono text-primary text-lg">{citySummary.topHexAlpha.toFixed(1)}</p>
                 <p className="text-[10px] text-muted-foreground font-mono">{citySummary.topHexH3}</p>
               </div>
+              {citySummary.resolutionBreakdown && (
+                <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+                  <p className="text-xs text-muted-foreground">Multi-Resolution Grid</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="text-center">
+                      <p className="text-lg font-mono">{citySummary.resolutionBreakdown.res9}</p>
+                      <p className="text-[10px] text-muted-foreground">Res 9</p>
+                      <p className="text-[9px] text-muted-foreground/60">~174m</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-mono">{citySummary.resolutionBreakdown.res8}</p>
+                      <p className="text-[10px] text-muted-foreground">Res 8</p>
+                      <p className="text-[9px] text-muted-foreground/60">~460m</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-mono">{citySummary.resolutionBreakdown.res7}</p>
+                      <p className="text-[10px] text-muted-foreground">Res 7</p>
+                      <p className="text-[9px] text-muted-foreground/60">~1.2km</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -246,7 +268,7 @@ export function Sidebar({ selectedHexId, selectedLaunchZoneId, onSelectHex, onSe
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="text-sm text-muted-foreground space-y-4 pt-2">
-                  <p>The Alpha Score uses H3 hexagonal grid cells (~460m diameter) with a corrected geometric-mean formula and DBSCAN clustering.</p>
+                  <p>The Alpha Score uses a multi-resolution H3 hexagonal grid: Res 9 (~174m) for dense urban cores, Res 8 (~460m) for urban neighborhoods, and Res 7 (~1.2km) for suburban zones. Scoring uses geometric-mean normalization with DBSCAN clustering.</p>
 
                   <div className="bg-accent/50 p-3 rounded-md font-mono text-xs space-y-2 text-foreground">
                     <p><span className="text-primary">Step 1:</span> D = (citations/area) x log(1 + POIs)</p>
