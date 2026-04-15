@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
+import type { Feature, Geometry } from "geojson";
 import "leaflet/dist/leaflet.css";
 import { useGetHexGeoJson, useListLaunchZones } from "@workspace/api-client-react";
 import type { HexFeatureProperties } from "@workspace/api-client-react";
@@ -132,9 +133,9 @@ export function Map({
 
     const map = mapInstanceRef.current;
 
-    const geoJsonLayer = L.geoJSON(geojsonData as any, {
-      style: (feature: any) => {
-        const props = feature.properties as HexFeatureProperties;
+    const geoJsonLayer = L.geoJSON(geojsonData as GeoJSON.FeatureCollection, {
+      style: (feature) => {
+        const props = (feature as Feature<Geometry, HexFeatureProperties>).properties;
         const score = getScore(props, layerMode);
         const isHidden = props.alphaScore < minScore;
         const isGoldilocks = showGoldilocks && props.isGoldilocksZone;
@@ -154,8 +155,8 @@ export function Map({
           fillOpacity: isHidden ? 0.03 : 0.55,
         };
       },
-      onEachFeature: (feature: any, layer) => {
-        const props = feature.properties as HexFeatureProperties;
+      onEachFeature: (feature, layer) => {
+        const props = (feature as Feature<Geometry, HexFeatureProperties>).properties;
 
         const tooltipContent = `
           <div style="font-family: monospace; font-size: 11px; line-height: 1.5;">

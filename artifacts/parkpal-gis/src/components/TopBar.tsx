@@ -39,7 +39,11 @@ export function TopBar({ layerMode, setLayerMode, showGoldilocks, setShowGoldilo
           <ToggleGroup
             type="single"
             value={layerMode}
-            onValueChange={(v) => v && setLayerMode(v as any)}
+            onValueChange={(v) => {
+              if (v === "alpha" || v === "demand" || v === "supply" || v === "competition") {
+                setLayerMode(v);
+              }
+            }}
             className="bg-background border border-border rounded-md p-0.5"
             data-testid="layer-toggles"
           >
